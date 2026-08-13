@@ -1,0 +1,195 @@
+端类型: web
+平台: pwa
+产物格式: PWA（manifest.json + service worker + 静态资源）
+适用场景: "Web 项目打包成 PWA，提供离线使用和移动端体验"
+
+决策规则:
+  打包方式:
+    规则1:
+      条件: "Web 项目需要离线使用"
+      建议: "生成 PWA（Progressive Web App）"
+      理由: "离线缓存、移动端体验、无需原生代码"
+      风险: "Safari PWA 功能有限（相比 Chrome）"
+      next_actions:
+        - "配置 manifest.json"
+        - "编写 service worker 缓存策略"
+        - "配置 HTTPS 服务器（PWA 必需）"
+
+    规则2:
+      条件: "Web 项目需要原生功能（如推送通知、相机、地理位置）"
+      建议: "选择混合应用打包（见 web/hybrid）"
+      理由: "可访问原生 API、用户体验更接近原生"
+      next_actions: ["跳转 web/hybrid 决策规则"]
+
+    规则3:
+      条件: "Web 项目是纯内容展示或简单应用"
+      建议: "PWA 最合适"
+      理由: "成本低、跨平台、更新快"
+
+  浏览器兼容性:
+    规则1:
+      条件: "目标用户主要使用 Chrome/Edge"
+      建议: "PWA 完全支持"
+      功能:
+        - "离线缓存"
+        - "推送通知"
+        - "后台同步"
+        - "添加到主屏幕"
+      next_actions: ["配置完整 PWA 功能"]
+
+    规则2:
+      条件: "目标用户主要使用 Safari（iOS）"
+      建议: "PWA 部分功能受限"
+      限制:
+        - "离线缓存支持"
+        - "推送通知不支持（iOS Safari）"
+        - "后台同步不支持"
+        - "添加到主屏幕支持"
+      风险: "iOS Safari 不支持推送通知"
+      next_actions: ["调整功能策略", "或选择混合应用打包"]
+
+    规则3:
+      条件: "目标用户使用多种浏览器"
+      建议: "PWA 核心功能（离线缓存 + 添加到主屏幕）"
+      理由: "覆盖所有现代浏览器、基本功能可用"
+
+  manifest.json 配置:
+    规则1:
+      条件: "需要移动端体验"
+      建议: "配置完整 manifest"
+      必需字段:
+        - "name: 应用名称"
+        - "short_name: 短名称（主屏幕显示）"
+        - "start_url: 启动 URL"
+        - "display: standalone（全屏体验）"
+        - "icons: 多尺寸图标（192x192, 512x512）"
+        - "theme_color: 主题颜色"
+        - "background_color: 背景颜色"
+      next_actions: ["生成 manifest.json", "准备图标资源"]
+
+    规则2:
+      条件: "仅需要离线功能"
+      建议: "简化 manifest"
+      最小字段:
+        - "name"
+        - "short_name"
+        - "start_url"
+        - "icons"
+
+  service worker 缓存策略:
+    规则1:
+      条件: "静态资源多（CSS、JS、图片）"
+      建议: "Cache First 策略"
+      理由: "优先缓存、减少网络请求、离线可用"
+      next_actions: ["配置缓存优先策略"]
+
+    规则2:
+      条件: "内容频繁更新（新闻、数据）"
+      建议: "Network First 策略"
+      理由: "优先网络、保证最新内容、网络失败时回退缓存"
+
+    规则3:
+      条件: "混合场景"
+      建议: "分层缓存策略"
+      策略:
+        - "静态资源：Cache First"
+        - "API 数据：Network First"
+        - "图片：Stale While Revalidate"
+
+  分发方式:
+    规则1:
+      条件: "PWA 需要HTTPS托管（强制要求）"
+      建议: "部署到 HTTPS 服务器"
+      选项:
+        - "自有 HTTPS 服务器"
+        - "云托管（Firebase Hosting、Vercel、Netlify）"
+        - "GitHub Pages（免费 HTTPS）"
+      风险: "HTTP 环境下 PWA 功能不可用"
+      next_actions: ["配置 HTTPS 服务器", "部署 PWA 包"]
+
+风险提示:
+  - "PWA 必须使用 HTTPS（HTTP 下 service worker 不生效）"
+  - "iOS Safari 不支持推送通知（需混合应用或原生应用）"
+  - "Service worker 缓存策略不当可能导致内容过期"
+  - "部分旧浏览器不支持 PWA"
+  - "用户需手动添加到主屏幕（无自动安装）"
+
+构建流程:
+  web/pwa:
+    1: "检查项目是否有 index.html 和静态资源"
+    2: "生成 manifest.json（应用名称、图标、启动 URL）"
+    3: "编写 service worker（缓存策略）"
+    4: "配置 HTTPS 服务器托管"
+    5: "输出 PWA 包到 dist/web/pwa/"
+    6: "更新 Forge.md Results"
+
+验证方法:
+  chrome: "Chrome DevTools → Application → Manifest/Service Worker"
+  mobile: "浏览器打开 URL → 添加到主屏幕 → 验证离线功能"
+
+浏览器兼容性对照表:
+  Chrome_Android:
+    支持度: "完整支持"
+    功能:
+      - "离线缓存"
+      - "推送通知"
+      - "后台同步"
+      - "添加到主屏幕"
+      - "Web Share"
+
+  Safari_iOS:
+    支持度: "部分支持"
+    功能:
+      - "离线缓存 ✅"
+      - "推送通知 ❌"
+      - "后台同步 ❌"
+      - "添加到主屏幕 ✅"
+      - "Web Share ❌"
+
+  Firefox:
+    支持度: "完整支持"
+    功能:
+      - "离线缓存"
+      - "推送通知"
+      - "后台同步"
+      - "添加到主屏幕"
+
+  Edge:
+    支持度: "完整支持（基于 Chromium）"
+    功能: "同 Chrome"
+
+PWA 模板字段说明:
+  display:
+    standalone: "全屏体验，隐藏浏览器 UI"
+    fullscreen: "完全全屏（适合游戏）"
+    minimal_ui: "最小浏览器 UI"
+    browser: "标准浏览器体验"
+
+  orientation:
+    any: "任意方向"
+    portrait: "锁定竖屏"
+    landscape: "锁定横屏"
+
+HTTPS 服务器推荐:
+  免费:
+    - "GitHub Pages（适合静态站点）"
+    - "Vercel（适合前端项目）"
+    - "Netlify（适合静态站点）"
+
+  付费:
+    - "Firebase Hosting（Google，适合动态应用）"
+    - "AWS S3 + CloudFront"
+    - "自有服务器 + Let's Encrypt 证书"
+
+离线缓存最佳实践:
+  预缓存:
+    建议: "首次加载时缓存核心资源"
+    资源:
+      - "index.html"
+      - "main.js"
+      - "main.css"
+      - "关键图片"
+
+  动态缓存:
+    建议: "运行时缓存次要资源"
+    策略: "按需缓存、限制缓存大小"

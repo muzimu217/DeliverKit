@@ -1,0 +1,21 @@
+{
+  "name": "sample-typescript-project",
+  "version": "1.0.0",
+  "description": "Sample TypeScript project for ForgeKit testing",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["typescript", "forgekit", "sample"],
+  "author": "ForgeKit Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

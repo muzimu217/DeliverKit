@@ -1,0 +1,115 @@
+# ForgeKit 知识库 - 选型决策树
+# 当前为策展参考数据；尚无生产运行时加载器读取此文件
+
+# deb vs rpm vs docker 选型
+format_selection:
+  criteria:
+    - name: "deployment_target"
+      conditions:
+        apt_repository: "deb (Ubuntu/Debian)"
+        yum_repository: "rpm (CentOS/EulerOS/Fedora)"
+        container_orchestration: "docker (Kubernetes/Docker Compose)"
+        standalone_binary: "tar.gz / static binary"
+
+    - name: "dependency_complexity"
+      mapping:
+        complex_runtime_deps: "deb/rpm (包管理器自动处理依赖)"
+        minimal_deps: "docker (容器内封闭)"
+        zero_deps: "tar.gz / static binary"
+
+    - name: "architecture_coverage"
+      mapping:
+        single_arch: "deb/rpm (指定架构构建)"
+        multi_arch_container: "docker (buildx 多架构 manifest)"
+
+# 系统版本选择
+system_version_selection:
+  ubuntu:
+    recommendation: "Ubuntu 22.04 LTS"
+    decision_basis:
+      - "最新 LTS 版本（2027-04 EOL）"
+      - "glibc 2.35（兼容性好）"
+      - "Python 3.10（现代特性）"
+      - "社团熟悉度高"
+
+    fallback:
+      ubuntu_20_04:
+        when: "需要向下兼容到 glibc 2.31"
+        decision_basis: "构建产物可运行于 20.04/22.04/24.04"
+
+  centos:
+    recommendation: "CentOS 9 Stream"
+    decision_basis:
+      - "当前维护版本（2027-12 EOL）"
+      - "glibc 2.34"
+      - "RHEL 9 上游"
+    warning: "CentOS 7/8 已停止维护，建议迁移到 Rocky/Alma"
+
+  euleros:
+    recommendation: "EulerOS 2.9"
+    decision_basis:
+      - "华为云维护版本"
+      - "glibc 2.34（与 CentOS 9 相同）"
+      - "鲲鹏处理器优化"
+
+# 架构选择
+architecture_selection:
+  x86_64_amd64:
+    recommended: true
+    availability: "所有云平台 / 本地机器"
+    build_cost: "最低（原生构建）"
+
+  aarch64_arm64:
+    recommended: false  # MVP 不验收
+    availability: "华为云鲲鹏 / AWS Graviton / 本地 ARM"
+    build_cost: "较高（需要 QEMU 或原生实例）"
+    optimization: "EulerOS 针对鲲鹏优化"
+
+# 构建环境选择
+build_environment:
+  local:
+    pros: ["最快", "无网络延迟"]
+    cons: ["需要安装工具链", "环境污染"]
+    recommended_for: "本地开发测试"
+
+  docker_container:
+    pros: ["环境隔离", "一致性保证", "多发行版支持"]
+    cons: ["Docker 必需", "启动延迟"]
+    recommended_for: "生产构建 / CI"
+
+  ci_pipeline:
+    pros: ["自动化", "矩阵构建", "质量检查"]
+    cons: ["配置复杂", "资源成本"]
+    recommended_for: "团队协作 / 持续集成"
+
+# 决策示例输出（decision_basis 格式）
+decision_examples:
+  pack_deb:
+    example: |
+      选择 Ubuntu 22.04 LTS 作为构建环境，因为：
+      1. 最新 LTS 版本（2027-04 EOL），稳定性保证
+      2. glibc 2.35 兼容性好，覆盖主流部署环境
+      3. Python 3.10 支持现代特性（async/await, type hints）
+      4. 社团成员熟悉度高，降低维护成本
+
+      构建参数：
+      - arch: x86_64（MVP 验收要求）
+      - distro: ubuntu-22.04（目标部署环境）
+      - version: 1.0.0（项目版本号）
+
+  build_docker_image:
+    example: |
+      选择 python:3.10-slim 作为 base image，因为：
+      1. 项目语言：Python，需要 Python 运行环境
+      2. 镜像大小优先：slim 变体 ~150MB（vs full ~1GB）
+      3. 官方镜像支持 linux/amd64 和 linux/arm64
+      4. 构建参数：未传入 build_args，使用默认配置
+
+      平台选择：linux/amd64（MVP 验收只要求 x86_64）
+      标签策略：["1.0.0", "latest"]（版本 + 最新）
+
+# 数据引用
+data_sources:
+  systems: "src/systems/*/versions.yaml"
+  deb_guide: "src/knowledge/deb-packaging.yaml"
+  docker_guide: "src/knowledge/docker-best-practices.yaml"

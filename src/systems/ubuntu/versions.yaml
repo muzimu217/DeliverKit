@@ -1,0 +1,185 @@
+# Ubuntu 系统版本适配清单
+
+# 官方支持版本（LTS 优先）
+supported_versions:
+  # LTS 版本（长期支持，5 年更新）
+  - version: "20.04"
+    codename: "focal"
+    status: "LTS"
+    eol: "2025-04"
+    glibc: "2.31"
+    python_default: "3.8"
+    kernel_default: "5.4"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "当前最稳定 LTS，广泛用于生产环境"
+
+  - version: "22.04"
+    codename: "jammy"
+    status: "LTS"
+    eol: "2027-04"
+    glibc: "2.35"
+    python_default: "3.10"
+    kernel_default: "5.15"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "最新 LTS，推荐用于新项目"
+
+  - version: "24.04"
+    codename: "noble"
+    status: "LTS"
+    eol: "2029-04"
+    glibc: "2.39"
+    python_default: "3.12"
+    kernel_default: "6.8"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "刚发布 LTS，建议等待 6 个月稳定期后再用于生产"
+
+  # 非 LTS 版本（短期支持，9 个月）
+  - version: "23.10"
+    codename: "mantic"
+    status: "Interim"
+    eol: "2024-07"
+    glibc: "2.38"
+    python_default: "3.11"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "短期支持版本，不建议用于生产"
+
+  - version: "24.10"
+    codename: "oracular"
+    status: "Interim"
+    eol: "2025-07"
+    glibc: "2.40"
+    python_default: "3.13"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "开发版本，仅用于测试"
+
+# 已过时版本（不推荐，但列出供参考）
+deprecated_versions:
+  - version: "18.04"
+    codename: "bionic"
+    status: "EOL"
+    eol: "2023-04"
+    glibc: "2.27"
+    python_default: "3.6"
+    notes: "已停止支持，仅用于遗留系统维护"
+
+  - version: "16.04"
+    codename: "xenial"
+    status: "EOL"
+    eol: "2021-04"
+    glibc: "2.23"
+    python_default: "3.5"
+    notes: "已停止支持，不建议使用"
+
+  - version: "14.04"
+    codename: "trusty"
+    status: "EOL"
+    eol: "2019-04"
+    glibc: "2.19"
+    python_default: "3.4"
+    notes: "已停止支持，仅用于极端遗留系统"
+
+# 打包工具链
+packaging_tools:
+  - tool: "dpkg-deb"
+    version: ">=1.19"
+    purpose: "底层打包工具"
+    usage: "dpkg-deb -b package-dir output.deb"
+
+  - tool: "debhelper"
+    version: ">=13"
+    purpose: "deb 打包辅助工具集"
+    usage: "dh_make --native --single"
+
+  - tool: "lintian"
+    version: ">=2.5"
+    purpose: "deb 包质量检查"
+    usage: "lintian output.deb"
+
+  - tool: "fakeroot"
+    version: ">=1.25"
+    purpose: "模拟 root 权限打包"
+    usage: "fakeroot dpkg-deb -b package-dir output.deb"
+
+# 依赖包管理
+dependency_management:
+  package_manager: "apt"
+  dependency_file: "debian/control"
+  dependency_types:
+    - type: "Depends"
+      priority: "required"
+      notes: "必须依赖，缺少则包无法运行"
+    - type: "Recommends"
+      priority: "standard"
+      notes: "推荐依赖，缺少则功能受限"
+    - type: "Suggests"
+      priority: "extra"
+      notes: "建议依赖，可选增强功能"
+    - type: "Enhances"
+      priority: "extra"
+      notes: "增强其他包的功能"
+
+# 构建环境镜像
+build_images:
+  - image: "ubuntu:20.04"
+    dockerfile: "templates/Dockerfile.ubuntu-20.04"
+    usage: "构建 Ubuntu 20.04 deb 包"
+    size: "72MB"
+    recommended: true
+
+  - image: "ubuntu:22.04"
+    dockerfile: "templates/Dockerfile.ubuntu-22.04"
+    usage: "构建 Ubuntu 22.04 deb 包"
+    size: "77MB"
+    recommended: true
+
+  - image: "ubuntu:24.04"
+    dockerfile: "templates/Dockerfile.ubuntu-24.04"
+    usage: "构建 Ubuntu 24.04 deb 包"
+    size: "78MB"
+    recommended: false
+
+# 关键注意事项
+critical_notes:
+  - note: "glibc 版本兼容性"
+    severity: "high"
+    description: "在 Ubuntu 22.04（glibc 2.35）构建的包，无法在 Ubuntu 20.04（glibc 2.31）上运行"
+    solution: "使用目标系统的 glibc 版本进行构建，或使用静态链接"
+
+  - note: "Python 版本差异"
+    severity: "medium"
+    description: "Ubuntu 不同版本默认 Python 版本不同（20.04: 3.8, 22.04: 3.10, 24.04: 3.12）"
+    solution: "在 control 中明确声明 Python 版本依赖：python3 (>= 3.8)"
+
+  - note: "架构差异"
+    severity: "medium"
+    description: "aarch64 和 x86_64 的包不能混用"
+    solution: "在包名中标注架构：package_1.0.0_amd64.deb / package_1.0.0_arm64.deb"
+
+  - note: "systemd vs init.d"
+    severity: "low"
+    description: "Ubuntu 16.04+ 使用 systemd，旧版 init.d 脚本可能不兼容"
+    solution: "优先使用 systemd service 文件"
+
+# 参考链接
+references:
+  - url: "https://wiki.debian.org/Packaging"
+    title: "Debian 打包官方指南"
+
+  - url: "https://packaging.ubuntu.com/"
+    title: "Ubuntu 打包指南"
+
+  - url: "https://manpages.debian.org/dpkg-deb"
+    title: "dpkg-deb 手册"
+
+  - url: "https://manpages.debian.org/debhelper"
+    title: "debhelper 手册"

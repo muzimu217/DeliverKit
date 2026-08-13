@@ -1,0 +1,40 @@
+# CentOS 9 Stream RPM 包构建环境
+# 用途：在 Docker 容器中构建 .rpm 包
+
+FROM quay.io/centos/centos:stream9
+
+LABEL maintainer="ForgeKit Team <opensource-club@kcos.club>"
+LABEL description="CentOS 9 Stream RPM packaging build environment"
+LABEL version="1.0.0"
+
+# 设置环境变量
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# 更新系统并安装打包工具
+RUN dnf -y update && dnf -y install \
+    rpm-build \
+    rpmdevtools \
+    rpmlint \
+    gcc \
+    make \
+    python3 \
+    python3-setuptools \
+    python3-pip \
+    git \
+    curl \
+    wget \
+    && dnf -y clean all
+
+# 设置 RPM 构建目录
+RUN rpmdev-setuptree
+
+# 设置工作目录
+WORKDIR /build
+
+# 定义构建入口点（编码阶段实现）
+# 使用方式：docker run -v $(pwd):/build forgekit-centos-9
+ENTRYPOINT ["bash", "-c", "\
+    echo 'CentOS 9 RPM build environment ready'; \
+    echo '编码阶段实现：rpmbuild -bb package.spec'; \
+"]

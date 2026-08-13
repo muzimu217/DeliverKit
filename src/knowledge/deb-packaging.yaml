@@ -1,0 +1,121 @@
+# ForgeKit 知识库 - Debian/Ubuntu 打包要点
+# 数据源：src/systems/ubuntu/versions.yaml + packaging-guide.md
+
+# 打包基础
+packaging_basics:
+  package_format: "deb"
+  naming_convention: "package-name_version_architecture.deb"
+  structure:
+    - "debian-binary (2.0)"
+    - "control.tar.gz (元数据)"
+    - "data.tar.gz (实际文件)"
+
+  # 目录结构
+  debian_directory:
+    required_files:
+      - "control (必须)"
+      - "rules (必须)"
+      - "changelog (必须)"
+      - "compat (必须)"
+    optional_files:
+      - "postinst (安装后脚本)"
+      - "postrm (卸载后脚本)"
+      - "install (文件安装路径)"
+      - "dirs (额外目录)"
+
+# 版本选择决策树
+version_selection:
+  criteria:
+    - name: "glibc_compatibility"
+      description: "在低 glibc 版本构建，产物可向上兼容"
+      recommendation: "Ubuntu 20.04 (glibc 2.31) → 可运行于 20.04/22.04/24.04"
+      warning: "Ubuntu 22.04 (glibc 2.35) → 无法运行于 Ubuntu 20.04"
+
+    - name: "python_version"
+      description: "不同 Ubuntu 版本默认 Python 版本不同"
+      mapping:
+        ubuntu-20.04: "Python 3.8"
+        ubuntu-22.04: "Python 3.10"
+        ubuntu-24.04: "Python 3.12"
+      recommendation: "声明 python3 >= 3.8 以覆盖大部分 LTS"
+
+    - name: "lts_priority"
+      description: "优先使用 LTS 版本"
+      recommended_versions:
+        - "Ubuntu 20.04 LTS (稳定，兼容性好)"
+        - "Ubuntu 22.04 LTS (最新，功能更新)"
+
+# 依赖处理
+dependency_handling:
+  python_projects:
+    standard_packages:
+      - "python3-requests (apt 仓库已有)"
+      - "python3-click"
+      - "python3-numpy"
+    pip_packages:
+      strategy: "在 postinst 中执行 pip3 install"
+      warning: "可能引入版本冲突，建议用虚拟环境"
+
+  go_projects:
+    static_linking:
+      recommended: true
+      benefits: "无外部依赖，跨版本兼容"
+      command: "CGO_ENABLED=0 go build"
+
+  nodejs_projects:
+    runtime_dependency: "nodejs >= 12, npm"
+    installation: "npm install --production"
+
+# 常见问题
+common_issues:
+  - id: "glibc-incompatibility"
+    symptom: "version 'GLIBC_2.35' not found"
+    cause: "在高 glibc 版本构建，在低版本运行"
+    solutions:
+      - "在目标系统最低版本构建（Ubuntu 20.04）"
+      - "使用静态链接（Go/Rust）"
+      - "使用容器化部署（Docker）"
+    severity: "high"
+
+  - id: "python-version-mismatch"
+    symptom: "依赖 python3 >= 3.10，但系统只有 3.8"
+    cause: "Python 版本声明与目标系统不符"
+    solutions:
+      - "降低依赖版本声明（python3 >= 3.8）"
+      - "在 postinst 中安装指定版本"
+      - "使用虚拟环境隔离"
+    severity: "medium"
+
+  - id: "architecture-mismatch"
+    symptom: "dpkg: error: package architecture (amd64) does not match system (arm64)"
+    cause: "包架构与系统架构不匹配"
+    solutions:
+      - "在包名中标注架构：package_1.0.0_amd64.deb / package_1.0.0_arm64.deb"
+      - "使用 Docker buildx 多架构构建"
+    severity: "medium"
+
+# 最佳实践
+best_practices:
+  build_checklist:
+    - "debian/control 字段完整"
+    - "debian/rules 构建流程正确"
+    - "debian/changelog 版本号符合规范"
+    - "测试在目标版本安装（dpkg -i）"
+    - "测试服务启动（systemctl start）"
+    - "测试升级和卸载"
+
+  quality_check:
+    tools:
+      - "lintian (deb 包质量检查)"
+      - "dpkg -c (检查包内容)"
+      - "dpkg -I (检查包信息)"
+    commands:
+      lintian: "lintian package.deb"
+      contents: "dpkg -c package.deb"
+      info: "dpkg -I package.deb"
+
+# 数据引用
+data_sources:
+  versions: "src/systems/ubuntu/versions.yaml"
+  guide: "src/systems/ubuntu/packaging-guide.md"
+  templates: "src/systems/ubuntu/templates/"

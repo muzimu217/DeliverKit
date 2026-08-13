@@ -1,0 +1,61 @@
+# Ubuntu 22.04 (jammy) deb 包构建环境
+# 用途：在 Docker 容器中构建 .deb 包
+
+FROM ubuntu:22.04
+
+LABEL maintainer="ForgeKit Team <opensource-club@kcos.club>"
+LABEL description="Ubuntu 22.04 deb packaging build environment"
+LABEL version="1.0.0"
+
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=Asia/Shanghai
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# 更新系统并安装打包工具
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    devscripts \
+    debhelper \
+    dh-python \
+    fakeroot \
+    lintian \
+    python3 \
+    python3-setuptools \
+    python3-pip \
+    python3-venv \
+    git \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /build
+
+# 定义构建入口点
+# 使用方式：docker run -v $(pwd):/build forgekit-ubuntu-22.04
+ENTRYPOINT ["bash", "-c", "\
+    if [ -f debian/control ]; then \
+        echo '✅ Found debian/control, starting build...'; \
+        dpkg-buildpackage -b -us -uc; \
+        mkdir -p dist; \
+        mv ../*.deb dist/ 2>/dev/null || true; \
+        mv ../*.changes dist/ 2>/dev/null || true; \
+        mv ../*.buildinfo dist/ 2>/dev/null || true; \
+        echo '✅ Build completed, check dist/ directory'; \
+        ls -lh dist/; \
+    else \
+        echo '❌ debian/control not found, please prepare source directory first'; \
+        echo 'Example:'; \
+        echo '  mkdir -p debian'; \
+        echo '  cp /templates/control.template debian/control'; \
+        echo '  cp /templates/rules.template debian/rules'; \
+        echo '  echo \"13\" > debian/compat'; \
+        exit 1; \
+    fi \
+"]
+
+# 挂载点说明
+# -v /path/to/source:/build  # 源码目录（必须包含 debian/）
+# -v /path/to/output:/build/dist  # 产物输出目录

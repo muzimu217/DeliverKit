@@ -1,0 +1,24 @@
+{{PACKAGE_NAME}} ({{VERSION}}-{{REVISION}}) unstable; urgency=medium
+
+  * Initial release.
+  * Added core functionality.
+  * Fixed bug #123.
+  * Updated dependencies.
+
+ -- {{MAINTAINER_NAME}} <{{MAINTAINER_EMAIL}}>  {{DATE}}
+
+# 格式说明：
+# - 包名 (版本号-修订号) 发行版; 紧急程度
+# - 空一行
+# - 变更记录（每行前加两个空格，以 * 开头）
+# - 空一行
+# -- 维护者信息  日期（RFC 2822 格式，如：Sat, 04 Jul 2026 10:00:00 +0800）
+
+# 示例：
+# myapp (1.0.0-1) unstable; urgency=medium
+#
+#   * Initial release.
+#   * Added REST API support.
+#   * Fixed configuration file handling.
+#
+#  -- John Doe <john@example.com>  Sat, 04 Jul 2026 10:00:00 +0800

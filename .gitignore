@@ -1,0 +1,59 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Lockfiles are committed because CI and install reproducibility use npm ci.
+!package-lock.json
+!tests/fixtures/sample-typescript-project/package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test
+coverage/
+.nyc_output/
+test-results/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+.cache/
+.forgekit-validation/
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# DeliverKit specific
+# Keep systems/ and templates/ but ignore compiled versions
+src/systems/**/*.js
+src/systems/**/*.d.ts
+src/templates/**/*.js
+src/templates/**/*.d.ts
+
+# Ignore package files (generated during build)
+*.deb
+*.rpm
+*.tar.gz
+*.zip

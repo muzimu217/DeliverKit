@@ -1,0 +1,40 @@
+#!/usr/bin/make -f
+# debian/rules 模板文件
+# 用途：定义构建规则和流程
+
+# 默认规则：使用 debhelper 自动构建
+%:
+	dh $@ {{DH_OPTIONS}}
+
+# Python 项目构建示例
+#override_dh_auto_clean:
+#	python3 setup.py clean --all
+#
+#override_dh_auto_build:
+#	python3 setup.py build
+#
+#override_dh_auto_install:
+#	python3 setup.py install --root=$(CURDIR)/debian/{{PACKAGE_NAME}} --install-layout=deb
+
+# Go 项目构建示例
+#override_dh_auto_build:
+#	go build -o debian/{{PACKAGE_NAME}}/usr/bin/{{PACKAGE_NAME}}
+#
+#override_dh_auto_install:
+#	mkdir -p debian/{{PACKAGE_NAME}}/usr/bin
+#	cp {{PACKAGE_NAME}} debian/{{PACKAGE_NAME}}/usr/bin/
+
+# 跳过某些步骤（可选）
+#override_dh_strip:
+#	# Go 二进制文件不需要 strip
+
+# 清理构建产物
+override_dh_clean:
+	dh_clean
+	rm -rf build/ dist/ *.egg-info
+
+# 构建目录权限设置
+override_dh_fixperms:
+	dh_fixperms
+	chmod 755 debian/{{PACKAGE_NAME}}/usr/bin/*
+

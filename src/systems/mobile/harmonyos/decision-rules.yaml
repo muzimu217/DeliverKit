@@ -1,0 +1,110 @@
+端类型: mobile
+平台: harmonyos
+产物格式: HAP / APP
+适用场景: "鸿蒙原生应用（HarmonyOS NEXT）开发、签名、打包与上架分发"
+
+决策规则:
+  版本选择:
+    规则1:
+      条件: "新应用（无历史包袱）"
+      建议: "默认兼容 API 17；按已安装 SDK 可将 targetSdkVersion 提升到 API 24"
+      理由: "脱离 AOSP，系统能力强、审核友好、长期受支持"
+      风险: "compatibleSdkVersion 高于设备版本会导致安装失败"
+      next_actions: ["确认目标设备最低 API", "在 build-profile.json5 设置 compatibleSdkVersion"]
+    规则2:
+      条件: "需兼容 HarmonyOS 4.x 老设备"
+      建议: "目标 API 10/11，谨慎使用 NEXT 专属 API"
+      理由: "覆盖存量 4.x 设备"
+      风险: "无法使用 NEXT 新特性，未来需升级"
+    规则3:
+      条件: "目标设备未知"
+      建议: "选择 API 17 兼容基线，并用当前 SDK 编译"
+      理由: "兼容 HarmonyOS 5.0.5 云设备，同时保留新工具链能力"
+
+  架构选择:
+    规则1:
+      条件: "手机/平板"
+      建议: "default + tablet 多目标构建"
+      理由: "一套代码多形态分发"
+    规则2:
+      条件: "仅特定设备"
+      建议: "只构建对应 build_target"
+
+  打包方式:
+    规则1:
+      条件: "仅本地调试/内部分发"
+      建议: "assembleHap（调试签名自动生成）"
+      理由: "调试证书即可安装到已注册设备"
+    规则2:
+      条件: "准备上架 AppGallery"
+      建议: "assembleApp + 正式签名（AGC 证书 + Profile）"
+      理由: "APP 是上架唯一接受的产物形态，且必须正式签名"
+      next_actions: ["在 AGC 创建应用", "生成 CSR 并签发正式证书", "创建发布 Profile(.p7b)", "配置 build-profile.json5 signingConfigs"]
+
+  签名配置:
+    规则1:
+      条件: "调试"
+      建议: "DevEco 自动生成 debug 签名（p12/cer/profile）"
+      理由: "零配置即可安装到已注册调试设备"
+    规则2:
+      条件: "发布上架"
+      建议: "使用 AGC 签发的 release 签名（正式 .cer + .p7b + 自有 .p12）"
+      理由: "调试证书无法上架，且证书/Profile 与 bundleName、设备绑定"
+      next_actions: ["妥善保管 .p12 与密码", "证书遗失将无法更新已上架应用"]
+
+  Docker 基础镜像选择: []   # 不适用，鸿蒙构建在 DevEco/Command Line Tools 环境
+
+风险提示:
+  - "证书丢失：release .p12 丢失将导致已上架应用无法发布更新，务必离线备份"
+  - "调试证书不可上架：使用 debug 签名打出的 APP 会被审核拒绝"
+  - "Profile 绑定：.p7b 与 bundleName、证书、设备绑定，更换需重新生成"
+  - "隐私合规：上架必须提供隐私政策链接，敏感权限需说明用途"
+  - "权限收紧：受限权限（如定位、通讯录）需在 AGC 申请并说明合理性"
+  - "API 兼容性：声明 compatibleSdkVersion 高于目标设备 API 将导致无法安装"
+
+构建流程:
+  harmonyos/app:
+    1: "校验项目为鸿蒙工程（AppScope/app.json5 + build-profile.json5 + oh-package.json5）"
+    2: "检查工具链：node(18 LTS) / ohpm / hvigorw 是否可用"
+    3: "执行合规预检：bundleName 格式、API 版本、release 签名与 Profile"
+    4: "配置 build-profile.json5 的 signingConfigs（release 用 AGC 正式签名）"
+    5: "执行 hvigorw assembleApp（发布）或 assembleHap（调试）"
+    6: "产物输出到根工程或模块 build 目录下（例如 entry/build/default/outputs/*.hap）"
+    7: "计算 SHA256 校验和，生成 Release Manifest"
+    8: "输出合规报告（是否可达到上架标准）"
+
+验证方法:
+  hap: "hdc install <module>.hap 安装到已注册调试设备，启动验证"
+  app: "hdc install <app>.app 安装到已注册设备；上架前在 AGC 预审"
+
+上架流程（AppGallery Connect）:
+  1: "完成华为开发者实名认证（个人/企业）"
+  2: "在 AGC 创建应用，填写 bundleName 与分类"
+  3: "本地生成 CSR，上传 AGC 签发正式证书(.cer)"
+  4: "创建发布 Profile(.p7b)，绑定证书与应用"
+  5: "配置 build-profile.json5 正式签名，构建 release APP"
+  6: "AGC 上传 .app，填写应用信息、截图、隐私政策、权限说明"
+  7: "提交审核（人工），处理驳回意见"
+  8: "审核通过 → 发布/分阶段发布"
+
+兼容性对照表:
+  API_12:
+    harmonyos: "NEXT 5.0"
+    stage_model: "true"
+    toolchain: "DevEco 5.0 / Command Line Tools"
+    remark: "推荐目标版本"
+  API_13:
+    harmonyos: "NEXT 5.1"
+    stage_model: "true"
+    toolchain: "DevEco 5.1 / Command Line Tools"
+    remark: "较新版本，能力更全"
+  API_17:
+    harmonyos: "5.0.5"
+    stage_model: "true"
+    toolchain: "DevEco 6.x / Command Line Tools"
+    remark: "当前云手机兼容基线"
+  API_24:
+    harmonyos: "6.1.1"
+    stage_model: "true"
+    toolchain: "DevEco 6.1.1 / Command Line Tools 6.1.1"
+    remark: "当前工具链目标版本"

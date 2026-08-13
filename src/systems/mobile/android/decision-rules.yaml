@@ -1,0 +1,170 @@
+端类型: mobile
+平台: android
+产物格式: APK
+适用场景: "Android 应用本地打包（不上架 Google Play，直接分发）"
+
+决策规则:
+  版本选择:
+    规则1:
+      条件: "目标设备 Android 版本已知"
+      建议: "选择匹配的最低兼容版本（如目标设备是 Android 12 → 使用 Android 11 兼容）"
+      理由: "向上兼容，确保目标设备可用"
+      风险: "无法使用 Android 12+ 的新特性"
+      next_actions: ["确认目标设备最低版本", "调整 minSdkVersion"]
+
+    规则2:
+      条件: "目标设备版本未知或覆盖多个版本"
+      建议: "选择 Android 11（API 30）作为 minSdkVersion"
+      理由: "覆盖 90%+ 设备、稳定、向上兼容到 Android 14"
+      风险: "无法使用 Android 12/13/14 的最新特性"
+      next_actions: ["查看 Android 版本分布", "确认是否需要最新特性"]
+
+    规则3:
+      条件: "需要使用最新 Android 特性（如 Material You、动态颜色）"
+      建议: "选择 Android 13（API 33）或 Android 14（API 34）"
+      理由: "支持最新 UI 和功能"
+      风险: "覆盖设备减少（约 40-60%），低版本设备无法使用"
+      next_actions: ["评估目标用户设备", "决定是否牺牲覆盖率"]
+
+  打包方式:
+    规则1:
+      条件: "纯原生 Android 应用（Java/Kotlin）"
+      建议: "使用 Gradle 直接构建"
+      流程: "gradle assembleRelease → 生成 APK"
+      next_actions: ["配置 build.gradle", "设置签名配置"]
+
+    规则2:
+      条件: "Web 项目转移动端"
+      建议: "选择 Cordova 或 Capacitor（见 web/hybrid）"
+      理由: "WebView 打包、跨平台、开发成本低"
+      next_actions: ["跳转 web/hybrid 决策规则"]
+
+    规则3:
+      条件: "混合应用（原生 + WebView）"
+      建议: "Gradle 构建 + 集成 WebView 模块"
+      next_actions: ["配置 WebView 模块", "处理原生与 Web 交互"]
+
+  签名配置:
+    规则1:
+      条件: "调试版本（测试使用）"
+      建议: "使用 debug keystore（Android 自动生成）"
+      理由: "无需用户配置、开发便捷"
+      风险: "仅用于测试、不可正式分发、不同设备签名可能不同"
+      next_actions: ["使用 gradle assembleDebug"]
+
+    规则2:
+      条件: "分发版本（正式发布给用户）"
+      建议: "使用 release keystore（用户自管理）"
+      理由: "签名一致、可覆盖更新、正式分发"
+      风险:
+        - "需要用户配置 keystore 路径和密码"
+        - "keystore 丢失后无法更新应用"
+        - "不同签名会导致无法覆盖安装"
+      next_actions:
+        - "用户生成或提供 keystore 文件"
+        - "在 Forge.md 中配置 keystore 路径"
+        - "设置 signingConfigs in build.gradle"
+        - "执行 gradle assembleRelease"
+
+    规则3:
+      条件: "用户没有 keystore"
+      建议: "生成新的 release keystore"
+      命令: "keytool -genkey -v -keystore release.keystore -alias release -keyalg RSA -keysize 2048 -validity 10000"
+      风险: "新生成的 keystore 必须妥善保管，丢失后无法更新应用"
+      next_actions:
+        - "执行 keytool 命令生成 keystore"
+        - "记录 keystore 密码和别名"
+        - "备份 keystore 文件到安全位置"
+
+  分发方式:
+    规则1:
+      条件: "不上架 Google Play（明确不做）"
+      建议: "直接分发 APK 文件"
+      方式:
+        - "HTTPS 下载链接"
+        - "邮件发送"
+        - "云存储分享（Google Drive、Dropbox）"
+        - "内部服务器托管"
+      风险:
+        - "用户需手动安装（开启未知来源应用权限）"
+        - "无自动更新、需手动通知用户"
+        - "无 Google Play 审核、无官方推广"
+      next_actions:
+        - "生成 APK"
+        - "提供下载链接"
+        - "通知用户安装方法"
+
+风险提示:
+  - "证书丢失后无法更新应用（严重）"
+  - "不同签名会导致无法覆盖安装（用户需先卸载旧版本）"
+  - "不上架 Google Play，需要用户自行分发和更新"
+  - "目标 Android 版本过低可能无法使用某些库特性"
+  - "Android 14+ 有更严格的权限限制（需适配）"
+  - "某些设备可能禁止安装未知来源应用（需用户手动开启）"
+
+构建流程:
+  mobile/android/apk:
+    1: "检查项目是否有 AndroidManifest.xml 和 build.gradle"
+    2: "确认 minSdkVersion 和 targetSdkVersion"
+    3: "配置签名（debug 或 release keystore）"
+    4: "执行 gradle assembleRelease 或 assembleDebug"
+    5: "输出 APK 到 dist/mobile/android/"
+    6: "生成 SHA256 校验和"
+    7: "更新 Forge.md Results"
+
+验证方法:
+  debug: "adb install app-debug.apk && adb shell am start -n package/activity"
+  release: "手动安装到测试设备 → 验证功能"
+
+Android 版本分布（2024参考数据）:
+  Android_14_API_34:
+    覆盖率: "约 15%"
+    remark: "最新版本、部分设备"
+
+  Android_13_API_33:
+    覆盖率: "约 35%"
+    remark: "新特性、覆盖率中等"
+
+  Android_12_API_32:
+    覆盖率: "约 20%"
+    remark: "Material You 设计"
+
+  Android_11_API_30:
+    覆盖率: "约 90%"
+    remark: "推荐最低版本、覆盖大部分设备"
+
+  Android_10_API_29:
+    覆盖率: "约 95%"
+    remark: "极低版本、兼容几乎所有设备"
+
+权限适配提示:
+  Android_11_plus:
+    - "存储权限变更（分区存储）"
+    - "位置权限需明确说明"
+
+  Android_12_plus:
+    - "蓝牙权限需明确声明"
+    - "前台服务通知必需"
+
+  Android_14_plus:
+    - "照片选择器（Photo Picker）推荐"
+    - "更严格的后台限制"
+
+证书管理建议:
+  存储:
+    建议: "备份 keystore 到多个安全位置"
+    位置:
+      - "加密云存储"
+      - "本地加密备份"
+      - "团队共享加密存储"
+
+  密码管理:
+    建议: "使用密码管理器记录 keystore 密码和别名"
+    工具:
+      - "1Password"
+      - "Bitwarden"
+      - "LastPass"
+
+  团队共享:
+    建议: "使用加密共享方式（如 Keybase、加密Git仓库）"
+    风险: "共享后需统一管理，避免多版本签名冲突"

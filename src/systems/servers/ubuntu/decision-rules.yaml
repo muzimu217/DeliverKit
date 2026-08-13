@@ -1,0 +1,122 @@
+端类型: servers
+平台: ubuntu
+产物格式: deb
+适用场景: "服务器端应用部署到 Ubuntu 系统"
+
+决策规则:
+  版本选择:
+    规则1:
+      条件: "目标服务器 Ubuntu 版本已知"
+      建议: "选择匹配的 LTS 版本（如目标是 22.04 → 使用 22.04 构建）"
+      风险: "版本不匹配可能导致 glibc 或依赖不兼容"
+      next_actions: ["确认目标服务器版本", "查看 glibc 对照表"]
+
+    规则2:
+      条件: "目标服务器版本未知"
+      建议: "选择 Ubuntu 20.04 LTS（focal）构建"
+      理由: "glibc 2.31最低，产物向上兼容到 22.04 和 24.04"
+      风险: "无法使用 Ubuntu 22.04/24.04 的最新特性"
+      next_actions: ["询问用户目标环境", "或使用 Docker 镜像作为通用交付"]
+
+    规则3:
+      条件: "需要最新 Python/Node 版本"
+      建议: "选择 Ubuntu 22.04 LTS（jammy）"
+      理由: "Python 3.10、Node 18 LTS 默认可用"
+      风险: "产物不可向下兼容到 Ubuntu 20.04"
+
+  架构选择:
+    规则1:
+      条件: "目标服务器架构已知"
+      建议: "选择匹配的架构（x86_64 或 arm64）"
+
+    规则2:
+      条件: "目标服务器架构未知"
+      建议: "选择 x86_64（amd64）"
+      理由: "覆盖大部分服务器环境"
+
+    规则3:
+      条件: "需要多架构支持"
+      建议: "同时构建 x86_64 和 arm64"
+      next_actions: ["配置多架构构建", "使用 Docker buildx"]
+
+  打包方式:
+    规则1:
+      条件: "目标系统使用 systemd"
+      建议: "生成 deb 包 + systemd service"
+      理由: "系统级安装、自动启动、服务管理"
+      next_actions: ["配置 systemd service", "设置 postinst 脚本"]
+
+    规则2:
+      条件: "目标系统不使用 systemd 或用户不熟悉系统包"
+      建议: "使用 Docker 镜像（硬闭环）"
+      理由: "容器隔离、依赖独立、部署简单"
+      next_actions: ["配置 Dockerfile", "选择基础镜像"]
+
+    规则3:
+      条件: "项目是纯静态应用或脚本"
+      建议: "打包为压缩包 + 安装脚本"
+      理由: "无需系统包复杂度"
+
+  Docker 基础镜像选择:
+    规则1:
+      条件: "Python 项目"
+      建议: "python:3.10-slim 或 python:3.8-slim"
+      理由: "官方镜像、体积小、安全更新及时"
+      next_actions: ["确认 Python 版本需求", "配置 requirements.txt"]
+
+    规则2:
+      条件: "Node.js 项目"
+      建议: "node:18-alpine 或 node:20-alpine"
+      理由: "体积小（~40MB）、适合生产环境"
+
+    规则3:
+      条件: "需要完整系统环境"
+      建议: "ubuntu:22.04 或 ubuntu:20.04"
+      理由: "完整 apt 仓库、方便安装原生依赖"
+
+风险提示:
+  - "glibc 版本不兼容：在 Ubuntu 22.04 构建的产物无法在 Ubuntu 20.04 运行"
+  - "原生依赖缺失：deb 包依赖的原生库（如 libssl）需目标系统已安装"
+  - "systemd service 配置错误：postinst 脚本可能失败"
+  - "Docker daemon 不可用：本地构建需要 Docker Desktop 运行"
+
+构建流程:
+  servers/ubuntu/deb:
+    1: "检查项目是否有 setup.py 或 pyproject.toml"
+    2: "生成 debian/control、rules、changelog"
+    3: "配置 systemd service（如需要）"
+    4: "执行 dpkg-deb 构建"
+    5: "输出 .deb 到 dist/servers/ubuntu/"
+    6: "生成 SHA256 校验和"
+    7: "更新 Forge.md Results"
+
+  servers/ubuntu/docker:
+    1: "检查项目是否有 Dockerfile 或生成默认模板"
+    2: "选择基础镜像（python:3.10-slim）"
+    3: "配置依赖安装（pip install）"
+    4: "执行 docker build"
+    5: "输出镜像到本地 Docker daemon"
+    6: "更新 Forge.md Results"
+
+验证方法:
+  deb: "dpkg -i package.deb && systemctl status service-name"
+  docker: "docker run -d image-name:tag && curl localhost:port"
+
+兼容性对照表:
+  Ubuntu_20_04:
+    glibc: "2.31"
+    python: "3.8"
+    node: "12.x/14.x"
+    remark: "最低 LTS，构建产物向上兼容"
+
+  Ubuntu_22_04:
+    glibc: "2.35"
+    python: "3.10"
+    node: "18 LTS"
+    remark: "推荐 LTS，平衡稳定性和新特性"
+
+  Ubuntu_24_04:
+    glibc: "2.39"
+    python: "3.12"
+    node: "20 LTS"
+    remark: "最新 LTS，产物不可向下兼容"

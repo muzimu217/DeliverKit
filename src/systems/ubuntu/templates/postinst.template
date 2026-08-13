@@ -1,0 +1,37 @@
+#!/bin/bash
+# debian/postinst 模板文件
+# 用途：安装后执行的脚本（如创建用户、启动服务）
+
+set -e  # 遇错即停
+
+# 创建系统用户（如果需要）
+if ! id {{PACKAGE_NAME}} &>/dev/null; then
+    useradd -r -s /bin/false -d /var/lib/{{PACKAGE_NAME}} {{PACKAGE_NAME}}
+    echo "✅ Created user: {{PACKAGE_NAME}}"
+fi
+
+# 创建数据目录（如果需要）
+mkdir -p /var/lib/{{PACKAGE_NAME}}
+mkdir -p /var/log/{{PACKAGE_NAME}}
+chown {{PACKAGE_NAME}}:{{PACKAGE_NAME}} /var/lib/{{PACKAGE_NAME}}
+chown {{PACKAGE_NAME}}:{{PACKAGE_NAME}} /var/log/{{PACKAGE_NAME}}
+
+# 安装 Python 依赖（如果需要）
+# cd /usr/share/{{PACKAGE_NAME}}
+# pip3 install -r requirements.txt --quiet
+
+# 启用 systemd 服务（如果需要）
+if [ -f /lib/systemd/system/{{PACKAGE_NAME}}.service ]; then
+    systemctl daemon-reload
+    systemctl enable {{PACKAGE_NAME}}
+    systemctl start {{PACKAGE_NAME}}
+    echo "✅ Started service: {{PACKAGE_NAME}}"
+fi
+
+# 输出安装成功信息
+echo "✅ {{PACKAGE_NAME}} installed successfully"
+echo "   Configuration: /etc/{{PACKAGE_NAME}}/config.yaml"
+echo "   Log file: /var/log/{{PACKAGE_NAME}}/app.log"
+echo "   Service status: systemctl status {{PACKAGE_NAME}}"
+
+exit 0

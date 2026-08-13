@@ -1,0 +1,32 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "release",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "release.cer",
+          "storePassword": "${HARMONY_STORE_PASSWORD}",
+          "keyAlias": "release",
+          "keyPassword": "${HARMONY_KEY_PASSWORD}",
+          "profile": "release.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "release.p12"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "release",
+        "compatibleSdkVersion": 12,
+        "runtimeOS": "HarmonyOS",
+        "buildOption": { "strictMode": { "caseSensitiveCheck": true } }
+      }
+    ],
+    "buildModeSet": [{ "name": "debug" }, { "name": "release" }]
+  },
+  "modules": [
+    { "name": "entry", "srcPath": "./entry", "targets": [{ "name": "default", "applyTo": "phone" }] }
+  ]
+}

@@ -1,0 +1,73 @@
+# CentOS 系统版本适配清单
+
+supported_versions:
+  - version: "7"
+    status: "EOL (2024-06-30)"
+    glibc: "2.17"
+    python_default: "2.7/3.6"
+    package_format: "rpm"
+    arch_support: ["x86_64"]
+    recommended: false
+    notes: "已停止维护，仅用于遗留系统"
+
+  - version: "8"
+    status: "EOL (2021-12-31)"
+    glibc: "2.28"
+    python_default: "3.6"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "已停止维护，建议迁移到 Rocky/Alma"
+
+  - version: "9"
+    status: "EOL (2027-12-31)"
+    glibc: "2.34"
+    python_default: "3.9"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "CentOS Stream 9，滚动发布版本"
+
+deprecated_versions:
+  - version: "6"
+    status: "EOL"
+    notes: "已完全停止支持"
+
+# CentOS 替代方案
+alternatives:
+  - name: "Rocky Linux"
+    version: "8/9"
+    notes: "CentOS 8 的替代品，RHEL 兼容"
+
+  - name: "AlmaLinux"
+    version: "8/9"
+    notes: "CentOS 8 的替代品，社区驱动"
+
+# RPM 打包工具
+packaging_tools:
+  - tool: "rpm-build"
+    version: ">=4.14"
+    purpose: "RPM 构建工具"
+    usage: "rpmbuild -bb package.spec"
+
+  - tool: "rpmlint"
+    version: ">=1.10"
+    purpose: "RPM 包质量检查"
+    usage: "rpmlint package.rpm"
+
+  - tool: "createrepo"
+    version: ">=0.10"
+    purpose: "创建 yum 仓库"
+    usage: "createrepo /path/to/packages"
+
+# 关键注意事项
+critical_notes:
+  - note: "CentOS 7 glibc 版本过低"
+    severity: "high"
+    description: "CentOS 7 glibc 2.17，无法运行新版本软件"
+    solution: "使用静态链接或容器化部署"
+
+  - note: "CentOS 8 已停止维护"
+    severity: "high"
+    description: "CentOS 8 在 2021 年底停止维护"
+    solution: "迁移到 Rocky Linux 8 或 AlmaLinux 8"

@@ -1,0 +1,39 @@
+# EulerOS 2.9 RPM 包构建环境
+# 用途：在 Docker 容器中构建 .rpm 包（华为云 EulerOS）
+
+FROM eulerOS:2.9
+
+LABEL maintainer="ForgeKit Team <opensource-club@kcos.club>"
+LABEL description="EulerOS 2.9 RPM packaging build environment（华为云）"
+LABEL version="1.0.0"
+
+# 设置环境变量
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+# 更新系统并安装打包工具
+RUN yum -y update && yum -y install \
+    rpm-build \
+    rpmdevtools \
+    rpmlint \
+    gcc \
+    make \
+    python3 \
+    python3-setuptools \
+    git \
+    curl \
+    wget \
+    && yum -y clean all
+
+# 设置 RPM 构建目录
+RUN rpmdev-setuptree
+
+# 设置工作目录
+WORKDIR /build
+
+# 定义构建入口点（编码阶段实现）
+ENTRYPOINT ["bash", "-c", "\
+    echo 'EulerOS 2.9 RPM build environment ready'; \
+    echo '编码阶段实现：rpmbuild -bb package.spec'; \
+    echo '鲲鹏处理器优化已启用'; \
+"]

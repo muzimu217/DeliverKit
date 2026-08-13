@@ -1,0 +1,82 @@
+{
+  "name": "deliverkit",
+  "version": "0.1.0",
+  "description": "AI 交付大脑：给 Agent 用的全生态交付编排 MCP 工具，把一个产品合法打包进 Linux/Windows/苹果/鸿蒙各生态",
+  "type": "module",
+  "main": "dist/mcp-server/index.js",
+  "types": "dist/mcp-server/index.d.ts",
+  "bin": {
+    "deliverkit-mcp": "dist/mcp-server/index.js",
+    "deliverkit": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:clean": "npm run clean && tsc --build --force",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:runtime": "npm run build:clean && node tests/runtime/compiled-mcp-smoke.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests --ext .ts",
+    "lint:fix": "eslint src tests --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "clean": "rm -rf dist",
+    "verify": "npm run lint && npm run typecheck && npm run build:clean && npm test && node tests/runtime/compiled-mcp-smoke.mjs",
+    "prepare": "npm run build:clean"
+  },
+  "keywords": [
+    "mcp",
+    "agent",
+    "packaging",
+    "delivery",
+    "multi-ecosystem",
+    "linux",
+    "windows",
+    "macos",
+    "harmonyos",
+    "release",
+    "ai",
+    "claude"
+  ],
+  "author": "muzimu217",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/muzimu217/DeliverKit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/muzimu217/DeliverKit/issues"
+  },
+  "homepage": "https://github.com/muzimu217/DeliverKit#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@types/js-yaml": "^4.0.9",
+    "commander": "^11.1.0",
+    "js-yaml": "^5.2.1",
+    "json5": "^2.2.3",
+    "zod": "^3.22.4",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "^1.2.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist",
+    "src/knowledge",
+    "src/packaging",
+    "src/systems",
+    "README.md",
+    "LICENSE"
+  ]
+}

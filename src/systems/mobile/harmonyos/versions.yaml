@@ -1,0 +1,126 @@
+# HarmonyOS（鸿蒙）系统版本适配清单
+#
+# 覆盖 HarmonyOS NEXT 及历史 API 版本，供 ForgeKit 决策依据与合规校验使用。
+# 参考：HarmonyOS NEXT / OpenHarmony API 版本演进。
+
+supported_api_versions:
+  - api_version: "9"
+    harmonyos_version: "3.1 / 4.0"
+    stage_model: true
+    status: "历史兼容"
+    recommended: false
+    toolchain: "DevEco Studio 3.1+ / Command Line Tools"
+    notes: "早期 Stage 模型，建议升级到 NEXT"
+
+  - api_version: "10"
+    harmonyos_version: "4.0"
+    stage_model: true
+    status: "历史兼容"
+    recommended: false
+    toolchain: "DevEco Studio 4.0 / Command Line Tools"
+    notes: "HarmonyOS 4.0 主流版本"
+
+  - api_version: "11"
+    harmonyos_version: "NEXT 5.0 (Beta)"
+    stage_model: true
+    status: "NEXT 预览"
+    recommended: false
+    toolchain: "DevEco Studio 5.0 / Command Line Tools"
+    notes: "HarmonyOS NEXT 首个公开预览，脱离 AOSP"
+
+  - api_version: "12"
+    harmonyos_version: "NEXT 5.0"
+    stage_model: true
+    status: "Stable (NEXT)"
+    recommended: true
+    toolchain: "DevEco Studio 5.0 / Command Line Tools (ohpm + hvigor)"
+    notes: "HarmonyOS NEXT 稳定版，推荐新应用目标版本"
+
+  - api_version: "13"
+    harmonyos_version: "NEXT 5.0.x / 5.1"
+    stage_model: true
+    status: "Recent"
+    recommended: true
+    toolchain: "DevEco Studio 5.1 / Command Line Tools"
+    notes: "当前较新版本，具备更多系统能力"
+
+  - api_version: "17"
+    harmonyos_version: "5.0.5"
+    stage_model: true
+    status: "Current compatible baseline"
+    recommended: true
+    toolchain: "DevEco Studio 6.x / Command Line Tools"
+    notes: "已通过 HarmonyOS 云手机安装验证"
+
+  - api_version: "24"
+    harmonyos_version: "6.1.1"
+    stage_model: true
+    status: "Current toolchain target"
+    recommended: true
+    toolchain: "DevEco Studio 6.1.1 / Command Line Tools 6.1.1"
+    notes: "新工程默认目标；安装到旧设备时需降低 compatibleSdkVersion"
+
+# 目标设备类型（影响产物形态与上架分类）
+device_types:
+  - type: "phone"
+    label: "手机"
+    default: true
+    build_target: "default"
+    notes: "最主流形态，AppGallery 手机分类"
+  - type: "tablet"
+    label: "平板"
+    default: false
+    build_target: "tablet"
+    notes: "大屏适配，需声明 largeScreen 支持"
+  - type: "2in1"
+    label: "2-in-1 折叠/双屏"
+    default: false
+    build_target: "2in1"
+    notes: "折叠屏与双屏形态"
+  - type: "wearable"
+    label: "智能穿戴"
+    default: false
+    build_target: "wearable"
+    notes: "轻量应用，能力受限"
+  - type: "tv"
+    label: "智慧屏"
+    default: false
+    build_target: "tv"
+    notes: "大屏娱乐"
+  - type: "car"
+    label: "车机"
+    default: false
+    build_target: "car"
+    notes: "车载场景，需车机能力声明"
+
+# 产物形态
+artifact_formats:
+  - format: "HAP"
+    description: "Harmony Ability Package，单模块部署包（调试/单模块分发）"
+    command: "hvigorw assembleHap"
+    output: "<module>/build/<product>/outputs/**/*.hap"
+  - format: "APP"
+    description: "Application Package，多模块聚合的可安装包（上架必须）"
+    command: "hvigorw assembleApp"
+    output: "build/**/outputs/**/*.app"
+    for_store: true
+
+# 签名与工具链
+toolchain:
+  node_lts: "18"
+  package_manager: "ohpm"
+  build_tool: "hvigor (hvigorw)"
+  signing_required: true
+  release_signing:
+    requires: ["csr", "cer", "p12", "p7b_profile"]
+    managed_by: "AppGallery Connect (AGC)"
+    notes: "发布态必须使用 AGC 签发的正式证书与 Profile，调试证书禁止上架"
+
+# 合规基线（上架必须）
+compliance_baseline:
+  bundle_name_format: "反向域名，如 com.example.myapp"
+  privacy_policy_required: true
+  permissions_justification_required: true
+  restricted_permissions_review: true
+  content_rating_required: true
+  realname_verification_required: true

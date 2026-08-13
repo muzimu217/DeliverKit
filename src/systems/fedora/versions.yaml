@@ -1,0 +1,49 @@
+# Fedora 系统版本适配清单
+
+supported_versions:
+  - version: "38"
+    status: "Active"
+    glibc: "2.37"
+    python_default: "3.11"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "当前稳定版本"
+
+  - version: "39"
+    status: "Active"
+    glibc: "2.38"
+    python_default: "3.12"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "最新版本（2023-11 发布）"
+
+  - version: "40"
+    status: "Beta"
+    glibc: "2.39"
+    python_default: "3.12"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "测试版本"
+
+# Fedora 特点
+features:
+  - feature: "最新技术"
+    description: "RHEL 的上游，新功能最先发布"
+    benefit: "适合开发和测试"
+
+  - feature: "短期支持"
+    description: "版本生命周期约 13 个月"
+    impact: "不建议用于长期生产环境"
+
+# RPM 打包工具（与 CentOS 相同）
+packaging_tools:
+  - tool: "rpm-build"
+    version: ">=4.14"
+    purpose: "RPM 构建工具"
+
+  - tool: "rpmlint"
+    version: ">=1.10"
+    purpose: "RPM 包质量检查"

@@ -1,0 +1,34 @@
+[Unit]
+Description={{PACKAGE_NAME}} - {{SHORT_DESCRIPTION}}
+Documentation={{PROJECT_URL}}
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{PACKAGE_NAME}}
+Group={{PACKAGE_NAME}}
+ExecStart=/usr/bin/{{PACKAGE_NAME}} --config /etc/{{PACKAGE_NAME}}/config.yaml
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=30s
+TimeoutStopSec=10s
+
+# 日志配置
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier={{PACKAGE_NAME}}
+
+# 安全配置
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/{{PACKAGE_NAME}} /var/log/{{PACKAGE_NAME}}
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

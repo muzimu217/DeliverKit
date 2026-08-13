@@ -1,0 +1,62 @@
+# Debian 系统版本适配清单
+
+supported_versions:
+  - version: "10"
+    codename: "buster"
+    status: "Oldstable"
+    glibc: "2.28"
+    python_default: "3.7"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "旧稳定版，建议升级到 Debian 11"
+
+  - version: "11"
+    codename: "bullseye"
+    status: "Stable"
+    glibc: "2.31"
+    python_default: "3.9"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "当前稳定版，推荐用于生产"
+
+  - version: "12"
+    codename: "bookworm"
+    status: "Stable"
+    glibc: "2.36"
+    python_default: "3.11"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "最新稳定版（2023-06 发布）"
+
+  - version: "13"
+    codename: "trixie"
+    status: "Testing"
+    glibc: "2.38"
+    python_default: "3.12"
+    package_format: "deb"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: false
+    notes: "测试版本，不建议用于生产"
+
+# 打包工具（与 Ubuntu 相同）
+packaging_tools:
+  - tool: "dpkg-deb"
+    version: ">=1.19"
+    purpose: "底层打包工具"
+
+  - tool: "debhelper"
+    version: ">=13"
+    purpose: "deb 打包辅助工具集"
+
+# Debian vs Ubuntu 差异
+differences:
+  - aspect: "软件版本"
+    description: "Debian 更保守，Ubuntu 更激进"
+    impact: "Debian 稳定性更好，Ubuntu 功能更新更快"
+
+  - aspect: "包命名"
+    description: "部分包名不同（如 libssl）"
+    impact: "需要针对性调整依赖声明"

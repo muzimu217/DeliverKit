@@ -1,0 +1,43 @@
+# 鸿蒙（HarmonyOS）打包知识
+# 供 ForgeKit 决策与合规校验引用（与 systems/mobile/harmonyos 配套）
+
+basics:
+  language: "ArkTS"
+  model: "Stage (API 9+)"
+  package_manager: "ohpm"
+  build_tool: "hvigor (hvigorw)"
+
+artifact:
+  hap: "单模块部署包，调试/内部分发"
+  app: "多模块聚合可安装包，上架唯一接受形态"
+
+toolchain_check:
+  node: ">=18 LTS"
+  ohpm: "ohpm CLI 可用"
+  hvigor: "hvigorw 脚本可用"
+  missing_fix: "安装 DevEco Studio 或 HarmonyOS Command Line Tools，并将其 bin 加入 PATH"
+
+signing:
+  debug: "DevEco 自动生成，仅限已注册调试设备，禁上架"
+  release_materials: ["csr", "cer", "p12", "p7b"]
+  release_issued_by: "AppGallery Connect"
+  risks:
+    - "p12 丢失无法更新已上架应用"
+    - "debug 证书不可上架"
+    - "p7b 绑定 bundleName/证书/设备"
+
+compliance:
+  bundle_name_format: "反向域名，如 com.example.myapp"
+  privacy_policy_required: true
+  permission_justification_required: true
+  restricted_permissions: ["ohos.permission.LOCATION", "ohos.permission.READ_CONTACTS", "ohos.permission.CAMERA"]
+  content_rating_required: true
+  realname_verification_required: true
+
+diagnostics:
+  sdk_not_found: "hvigorw: command not found / Failed to load hvigor"
+  signing_invalid: "signingConfig not found / certificate verify failed"
+  compatible_version_mismatch: "compatibleSdkVersion not satisfied / SDK version mismatch"
+  bundle_name_invalid: "bundleName is invalid"
+  profile_missing: ".p7b profile not found / profile verification failed"
+  ohpm_dependency: "ohpm ERROR / dependency resolve failed"

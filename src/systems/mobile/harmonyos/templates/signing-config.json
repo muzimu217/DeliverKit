@@ -1,0 +1,21 @@
+{
+  "_comment": "鸿蒙发布签名材料模板（release）。密码请用环境变量占位，切勿明文提交。",
+  "name": "release",
+  "type": "HarmonyOS",
+  "material": {
+    "certpath": "release.cer",
+    "storePassword": "${HARMONY_STORE_PASSWORD}",
+    "keyAlias": "release",
+    "keyPassword": "${HARMONY_KEY_PASSWORD}",
+    "profile": "release.p7b",
+    "signAlg": "SHA256withECDSA",
+    "storeFile": "release.p12"
+  },
+  "agc_flow": [
+    "1. 本地 keytool 生成 .p12 与 .csr",
+    "2. 上传 .csr 到 AppGallery Connect 签发正式 .cer",
+    "3. 在 AGC 创建发布 .p7b Profile，绑定证书与应用",
+    "4. 将 .cer/.p12/.p7b 放入工程并按本模板配置 build-profile.json5",
+    "5. hvigorw assembleApp 构建 release APP"
+  ]
+}

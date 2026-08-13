@@ -1,0 +1,66 @@
+# EulerOS 系统版本适配清单（华为云）
+
+supported_versions:
+  - version: "2.2"
+    status: "LTS"
+    glibc: "2.17"
+    python_default: "2.7/3.6"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "华为云 EulerOS 2.2，兼容 CentOS 7"
+
+  - version: "2.3"
+    status: "LTS"
+    glibc: "2.28"
+    python_default: "3.7"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "华为云 EulerOS 2.3，兼容 CentOS 8"
+
+  - version: "2.9"
+    status: "LTS"
+    glibc: "2.34"
+    python_default: "3.9"
+    package_format: "rpm"
+    arch_support: ["x86_64", "aarch64"]
+    recommended: true
+    notes: "华为云 EulerOS 2.9，兼容 CentOS 9 Stream"
+
+# EulerOS 特点
+features:
+  - feature: "aarch64 优化"
+    description: "华为自研鲲鹏处理器深度优化"
+    benefit: "ARM 架构性能提升显著"
+
+  - feature: "华为云集成"
+    description: "与华为云服务深度集成"
+    benefit: "云原生场景友好"
+
+  - feature: "安全增强"
+    description: "华为安全团队维护"
+    benefit: "安全漏洞响应快速"
+
+# RPM 打包工具（与 CentOS 相同）
+packaging_tools:
+  - tool: "rpm-build"
+    version: ">=4.14"
+    purpose: "RPM 构建工具"
+
+  - tool: "opentenbase_ctl"  # OpenTenBase 专用工具
+    version: ">=5.0"
+    purpose: "OpenTenBase 打包工具"
+    notes: "KCOS 社团维护"
+
+# 关键注意事项
+critical_notes:
+  - note: "aarch64 交叉编译"
+    severity: "medium"
+    description: "x86_64 上构建 aarch64 RPM 需要配置"
+    solution: "使用 QEMU 或华为云鲲鹏实例"
+
+  - note: "EulerOS 专有包"
+    severity: "low"
+    description: "部分包名与 CentOS 不同（如 python2-python3）"
+    solution: "参考 EulerOS 官方文档"

@@ -1,0 +1,76 @@
+# debian/control 模板文件
+# 用途：定义 deb 包的元数据和依赖
+# 使用方式：复制到项目 debian/ 目录并修改字段
+
+Source: {{PACKAGE_NAME}}
+Section: {{SECTION}}  # python/admin/net/utils/other
+Priority: optional
+Maintainer: {{MAINTAINER_NAME}} <{{MAINTAINER_EMAIL}}>
+Build-Depends: debhelper (>= 13), {{BUILD_DEPENDS}}
+Standards-Version: 4.5.1
+Homepage: {{PROJECT_URL}}
+Vcs-Git: {{GIT_URL}}
+Vcs-Browser: {{GIT_BROWSER_URL}}
+
+Package: {{PACKAGE_NAME}}
+Architecture: {{ARCHITECTURE}}  # all/amd64/arm64
+Depends: {{RUNTIME_DEPENDS}}
+Recommends: {{RECOMMENDED_DEPENDS}}
+Suggests: {{SUGGESTED_DEPENDS}}
+Installed-Size: {{INSTALLED_SIZE}}
+Description: {{SHORT_DESCRIPTION}}
+ {{LONG_DESCRIPTION}}
+ .
+ {{DETAILED_DESCRIPTION}}
+
+# 字段说明：
+# - Source: 源包名称（通常与 Package 相同）
+# - Section: 分类（见 https://packages.debian.org/stable/）
+# - Priority: 优先级（required/standard/optional/extra）
+# - Maintainer: 维护者信息（格式：Name <email>）
+# - Build-Depends: 构建时需要的包（如 python3, gcc, make）
+# - Standards-Version: Debian 打包规范版本（当前 4.5.1）
+# - Homepage: 项目主页
+# - Vcs-Git: Git 仓库地址
+# - Package: 目标包名称
+# - Architecture: 架构（all=架构无关, amd64=x86_64, arm64=aarch64）
+# - Depends: 运行时必须依赖（缺少则无法运行）
+# - Recommends: 推荐依赖（缺少则功能受限）
+# - Suggests: 建议依赖（可选增强功能）
+# - Installed-Size: 安装后占用空间（KB）
+# - Description: 包描述（短描述一行，长描述可多行，每行前加一个空格）
+
+# 示例（Python 项目）：
+# Source: myapp
+# Section: python
+# Priority: optional
+# Maintainer: John Doe <john@example.com>
+# Build-Depends: debhelper (>= 13), python3, python3-setuptools
+# Standards-Version: 4.5.1
+#
+# Package: myapp
+# Architecture: all
+# Depends: python3 (>= 3.8), python3-pip
+# Recommends: python3-requests
+# Suggests: python3-numpy
+# Installed-Size: 1024
+# Description: My Application - A Python tool for data processing
+#  A longer description that explains what this package does.
+#  This package provides a command-line tool for processing data files.
+#  It supports CSV, JSON, and YAML formats.
+
+# 示例（Go 项目）：
+# Source: myapp
+# Section: admin
+# Priority: optional
+# Maintainer: Jane Doe <jane@example.com>
+# Build-Depends: debhelper (>= 13), golang-go
+# Standards-Version: 4.5.1
+#
+# Package: myapp
+# Architecture: amd64
+# Depends: libc6 (>= 2.31)
+# Installed-Size: 5120
+# Description: My Application - A high-performance server
+#  A fast and reliable server application written in Go.
+#  This package provides a HTTP server with REST API support.

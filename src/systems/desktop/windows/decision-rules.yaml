@@ -1,0 +1,149 @@
+端类型: desktop
+平台: windows
+产物格式: exe（安装程序）
+适用场景: "桌面应用打包成 Windows 安装程序（不上架 Microsoft Store）"
+
+决策规则:
+  打包方式:
+    规则1:
+      条件: "Electron 项目"
+      建议: "使用 electron-builder 或 electron-packager"
+      理由: "官方打包工具、跨平台、配置简单"
+      next_actions:
+        - "配置 electron-builder"
+        - "选择 NSIS 或 Inno Setup 作为安装程序"
+
+    规则2:
+      条件: "原生 Windows 应用（C++/C#）"
+      建议: "使用 NSIS 或 Inno Setup 打包安装程序"
+      理由: "成熟工具、安装流程自定义"
+      next_actions: ["编写安装脚本", "配置安装流程"]
+
+    规成3:
+      条件: "需要简单分发（无需安装流程）"
+      建议: "打包为 portable exe（便携版）"
+      理由: "无需安装、直接运行"
+
+  安装程序选择:
+    规则1:
+      条件: "需要复杂安装流程（自定义路径、组件选择）"
+      建议: "NSIS（Nullsoft Scriptable Install System）"
+      理由: "脚本灵活、功能强大、体积小"
+      风险: "脚本编写复杂、需学习 NSIS 语法"
+      next_actions: ["学习 NSIS 脚本", "配置安装流程"]
+
+    规则2:
+      条件: "需要简单安装流程"
+      建议: "Inno Setup"
+      由: "GUI 配置、简单易用、生成安装程序快"
+      next_actions: ["使用 Inno Setup Compiler", "配置安装参数"]
+
+    规则3:
+      条件: "Electron 项目"
+      建议: "electron-builder 内置 NSIS"
+      理由: "自动配置、无缝集成"
+
+  签名配置:
+    规则1:
+      条件: "正式分发、避免 SmartScreen 警告"
+      建议: "使用 Authenticode 签名"
+      理由: "避免 Windows SmartScreen 拦截、提升信任度"
+      风险: "需要购买代码签名证书（约 $100-300/年）"
+      next_actions:
+        - "购买代码签名证书"
+        - "配置 signtool 签名"
+        - "签名 exe 文件"
+
+    规则2:
+      条件: "内部分发、测试使用"
+      建议: "不签名（用户手动允许 SmartScreen）"
+      风险: "Windows SmartScreen 可能拦截、用户需手动允许"
+      next_actions: ["告知用户如何绕过 SmartScreen"]
+
+  分发方式:
+    规则1:
+      条件: "不上架 Microsoft Store（明确不做）"
+      建议: "直接分发 exe 文件"
+      方式:
+        - "HTTPS 下载链接"
+        - "GitHub Releases"
+        - "云存储分享"
+        - "内部服务器托管"
+      风险:
+        - "无自动更新（需手动通知用户）"
+        - "无 Microsoft Store 审核"
+        - "可能被 SmartScreen 拦截（未签名）"
+      next_actions: ["生成安装程序", "提供下载链接"]
+
+风险提示:
+  - "未签名的 exe 可能被 Windows SmartScreen 拦截"
+  - "安装程序脚本配置错误可能导致安装失败"
+  - "目标 Windows 版本过低可能无法运行（依赖新版 API）"
+  - "不上架 Microsoft Store，需用户自行分发和更新"
+
+构建流程:
+  desktop/windows/exe:
+    1: "检查项目是否有可执行文件或构建脚本"
+    2: "选择安装程序工具（NSIS/Inno Setup）"
+    3: "编写安装脚本或配置安装参数"
+    4: "执行打包生成 exe 安装程序"
+    5: "签名（可选，正式分发推荐）"
+    6: "输出 exe 到 dist/desktop/windows/"
+    7: "生成 SHA256 校验和"
+    8: "更新 Forge.md Results"
+
+验证方法:
+  安装: "运行 exe → 安装 → 验证功能"
+  portable: "运行 portable exe → 验证功能"
+
+Windows 版本兼容性:
+  Windows_10:
+    remark: "推荐最低版本、覆盖大部分用户"
+
+  Windows_11:
+    remark: "最新版本、支持新特性"
+
+  Windows_7_8:
+    remark: "极低版本、部分 Electron 版本不支持"
+
+安装程序对比:
+  NSIS:
+    优点:
+      - "脚本灵活、功能强大"
+      - "体积小（~100KB）"
+      - "开源免费"
+    缺点:
+      - "脚本编写复杂"
+      - "需要学习 NSIS 语法"
+
+  Inno_Setup:
+    优点:
+      - "GUI 配置、简单易用"
+      - "生成快"
+      - "开源免费"
+    缺点:
+      - "灵活性不如 NSIS"
+
+Electron 打包配置示例:
+  electron_builder:
+    win:
+      target: "nsis"
+      icon: "build/icon.ico"
+    nsis:
+      oneClick: false
+      perMachine: true
+      allowToChangeInstallationDirectory: true
+
+代码签名证书推荐:
+  DigiCert: "权威 CA、价格较高（~$300/年）"
+  Sectigo: "性价比高（~$100/年）"
+  GlobalSign: "中等价格（~$200/年）"
+
+SmartScreen 绕过说明:
+  未签名程序:
+    提示: "Windows 已保护你的电脑"
+    用户操作: "更多信息 → 仍要运行"
+
+  签名程序:
+    提示: "首次运行可能仍有警告"
+    改善: "积累下载量后，SmartScreen 会提升信任度"
