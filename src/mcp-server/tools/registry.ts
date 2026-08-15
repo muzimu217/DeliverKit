@@ -14,6 +14,8 @@ const descriptions: Record<ToolName, string> = {
     '分析项目目录，识别语言、入口和已有打包配置，返回推荐的跨生态交付目标。',
   generate_packaging_plan:
     '生成项目级 Forge.md 交付契约，记录目标生态、产物、决策依据和风险（计划先行，后续构建工具必须基于此契约）。',
+  get_ecosystem_knowledge:
+    '读取某个生态的知识包（产物形态、工具链、签名硬约束、上架规则、验证方法）。缺省 ecosystem 时返回全部已注册生态。',
 };
 
 export function registerTools(): Tool[] {

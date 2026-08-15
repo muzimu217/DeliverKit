@@ -1,15 +1,26 @@
 /**
- * generate_packaging_plan - plan orchestration only.
+ * generate_packaging_plan - plan orchestration, 由生态知识包驱动。
  *
- * inspect -> resolve adapter -> derive decisions -> render -> write.
+ * inspect -> resolve delivery targets -> load knowledge -> derive decisions -> render -> write.
+ * 支持多目标：goals 中的每个生态/产物目标会解析为独立的 delivery_target。
  */
 
 import * as path from 'node:path';
 import { inspectProject } from './inspect-project.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
-import type { GeneratePackagingPlanOutput } from './types.js';
-import { loadSystemAdapterResult, resolveSystemAdapterId } from '../systems/adapter-loader.js';
-import { deriveDecisions, deriveNextActions, deriveRisks } from './plan-decision-engine.js';
+import type { GeneratePackagingPlanOutput, DeliveryTargetSummary } from './types.js';
+import {
+  loadEcosystemResult,
+  resolveEcosystemId,
+  selectArtifactIds,
+} from '../knowledge/ecosystem-loader.js';
+import type { EcosystemKnowledge } from '../knowledge/ecosystem-schema.js';
+import {
+  deriveDecisionBasis,
+  deriveNextActions,
+  deriveRisks,
+  type DeliveryTargetPlan,
+} from './plan-decision-engine.js';
 import { renderForgeMd } from './forge-renderer.js';
 import { writePlan } from './plan-writer.js';
 
@@ -44,41 +55,27 @@ export async function generatePackagingPlan(
     targetEnvironment = 'harmonyos';
   }
 
-  const adapterId = resolveSystemAdapterId(targetEnvironment);
-  if (!adapterId) {
-    return {
-      status: 'failed',
-      error: {
-        code: 'invalid_input',
-        summary: `尚不支持目标环境: ${targetEnvironment}`,
-        suggested_fix: '当前支持 Ubuntu 服务器和 HarmonyOS，例如 ubuntu-22.04 或 harmonyos-12',
-      },
-    };
+  const resolution = resolveDeliveryTargets(goals, targetEnvironment);
+  if (!resolution.ok) {
+    return { status: 'failed', error: resolution.error };
   }
+  const { targets, warnings } = resolution;
 
-  const adapterResult = loadSystemAdapterResult(adapterId);
-  if (!adapterResult.ok) {
-    return {
-      status: 'failed',
-      error: {
-        code: adapterResult.error.code,
-        summary: adapterResult.error.summary,
-        suggested_fix: '检查适配器注册信息、规则文件路径与 YAML 结构后重试',
-      },
-    };
-  }
-  const rules = adapterResult.adapter.rules;
-  const decisions = deriveDecisions(goals, inspection, rules, targetEnvironment);
-  const risks = deriveRisks(rules, goals);
+  const risks = deriveRisks(targets);
+  const nextActions = deriveNextActions(targets, inspection);
+  const decisions = deriveDecisionBasis(targets);
   const planPath = path.join(sourceDir, 'Forge.md');
-  const writeResult = writePlan(planPath, renderForgeMd({
-    sourceDir,
-    inspectResult: inspection,
-    goals,
-    decisions,
-    risks,
-    platform: rules?.平台,
-  }));
+
+  const writeResult = writePlan(
+    planPath,
+    renderForgeMd({
+      sourceDir,
+      inspectResult: inspection,
+      deliveryTargets: targets,
+      risks,
+      nextActions,
+    })
+  );
 
   if (!writeResult.ok) {
     return {
@@ -94,9 +91,101 @@ export async function generatePackagingPlan(
   return {
     status: 'success',
     plan_path: planPath,
-    summary: `已生成 ${inspection.language || '未知语言'} 项目的打包计划，目标产物：${goals.join(', ')}`,
-    warnings: inspection.warnings || [],
+    summary: `已生成 ${inspection.language || '未知语言'} 项目的交付计划，目标生态：${targets
+      .map((t) => t.id)
+      .join(', ')}`,
+    warnings: [...(inspection.warnings || []), ...warnings],
     decision_basis: decisions,
-    next_actions: deriveNextActions(goals, inspection, rules),
+    next_actions: nextActions,
+    delivery_targets: targets.map(toDeliveryTargetSummary),
+  };
+}
+
+interface ResolveResult {
+  ok: true;
+  targets: DeliveryTargetPlan[];
+  warnings: string[];
+}
+
+interface ResolveError {
+  ok: false;
+  error: {
+    code: 'invalid_input' | 'ecosystem_not_found' | 'ecosystem_knowledge_unreadable' | 'ecosystem_knowledge_invalid';
+    summary: string;
+    suggested_fix?: string;
+  };
+}
+
+function resolveDeliveryTargets(
+  goals: string[],
+  targetEnvironment?: string
+): ResolveResult | ResolveError {
+  const goalList =
+    goals.length > 0 ? goals : targetEnvironment ? [targetEnvironment] : ['ubuntu'];
+
+  const byEcosystem = new Map<string, { knowledge: EcosystemKnowledge; artifacts: Set<string> }>();
+  const unresolved: string[] = [];
+
+  for (const goal of goalList) {
+    const ecosystemId = resolveEcosystemId(goal);
+    if (!ecosystemId) {
+      unresolved.push(goal);
+      continue;
+    }
+
+    let entry = byEcosystem.get(ecosystemId);
+    if (!entry) {
+      const loadResult = loadEcosystemResult(ecosystemId);
+      if (!loadResult.ok) {
+        return {
+          ok: false,
+          error: {
+            code: loadResult.error.code,
+            summary: loadResult.error.summary,
+            suggested_fix: '检查生态知识包注册信息与 YAML 结构后重试',
+          },
+        };
+      }
+      entry = { knowledge: loadResult.knowledge, artifacts: new Set() };
+      byEcosystem.set(ecosystemId, entry);
+    }
+
+    for (const artifactId of selectArtifactIds(goal, entry.knowledge)) {
+      entry.artifacts.add(artifactId);
+    }
+  }
+
+  const targets: DeliveryTargetPlan[] = [...byEcosystem.entries()].map(([id, entry]) => ({
+    id,
+    knowledge: entry.knowledge,
+    artifactIds: [...entry.artifacts],
+  }));
+
+  if (targets.length === 0) {
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_input',
+        summary: `无法解析交付目标: ${unresolved.join(', ')}`,
+        suggested_fix:
+          '当前支持 Ubuntu/Debian（linux/ubuntu）和 HarmonyOS（mobile/harmonyos）生态，例如 deb、docker、ubuntu、harmonyos、app、hap',
+      },
+    };
+  }
+
+  const warnings = unresolved.length > 0
+    ? [`以下目标无法解析，已忽略: ${unresolved.join(', ')}`]
+    : [];
+
+  return { ok: true, targets, warnings };
+}
+
+function toDeliveryTargetSummary(target: DeliveryTargetPlan): DeliveryTargetSummary {
+  return {
+    ecosystem: target.id,
+    name: target.knowledge.name,
+    artifacts: target.artifactIds,
+    store: target.knowledge.distribution.store,
+    signing_required: target.knowledge.signing.required,
   };
 }

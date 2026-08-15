@@ -72,6 +72,10 @@ export type ErrorCode =
   | 'adapter_rules_not_found'
   | 'adapter_rules_unreadable'
   | 'adapter_rules_invalid'
+  // 生态知识包相关
+  | 'ecosystem_not_found'
+  | 'ecosystem_knowledge_unreadable'
+  | 'ecosystem_knowledge_invalid'
   // 路径相关
   | 'invalid_path'
   | 'path_not_found'
@@ -117,6 +121,16 @@ export interface GeneratePackagingPlanOutput extends ForgeKitResult {
   summary?: string;
   warnings?: string[];
   next_actions?: string[];
+  delivery_targets?: DeliveryTargetSummary[];
+}
+
+/** 一个交付目标在计划中的摘要（对应一个生态 + 选定产物）。 */
+export interface DeliveryTargetSummary {
+  ecosystem: string;
+  name: string;
+  artifacts: string[];
+  store: string | null;
+  signing_required: boolean;
 }
 
 // ========== Plan-before-build 强制约束 ==========

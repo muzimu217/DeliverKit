@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod';
+import { EcosystemKnowledgeSchema } from '../../knowledge/ecosystem-schema.js';
 
 // ========== 通用输入 Schema ==========
 
@@ -51,6 +52,9 @@ const DeliverKitErrorSchema = z.object({
     'adapter_rules_not_found',
     'adapter_rules_unreadable',
     'adapter_rules_invalid',
+    'ecosystem_not_found',
+    'ecosystem_knowledge_unreadable',
+    'ecosystem_knowledge_invalid',
     'invalid_path',
     'path_not_found',
     'path_out_of_bounds',
@@ -117,6 +121,31 @@ export const GeneratePackagingPlanInputSchema = z.object({
 export const GeneratePackagingPlanOutputSchema = DeliverKitResultSchema.extend({
   plan_path: z.string().optional().describe('生成的 Forge.md 交付契约路径'),
   summary: z.string().optional().describe('交付计划摘要'),
+  delivery_targets: z
+    .array(
+      z.object({
+        ecosystem: z.string().describe('生态 id（如 linux/ubuntu、mobile/harmonyos）'),
+        name: z.string().describe('生态展示名'),
+        artifacts: z.array(z.string()).describe('选定产物'),
+        store: z.string().nullable().describe('官方商店名（无则 null）'),
+        signing_required: z.boolean().describe('签名是否为硬性要求'),
+      })
+    )
+    .optional()
+    .describe('多目标交付摘要'),
+});
+
+// get_ecosystem_knowledge
+export const GetEcosystemKnowledgeInputSchema = z.object({
+  ecosystem: z
+    .string()
+    .optional()
+    .describe('生态 id（如 linux/ubuntu、mobile/harmonyos）；缺省返回全部已注册生态'),
+});
+
+export const GetEcosystemKnowledgeOutputSchema = DeliverKitResultSchema.extend({
+  ecosystems: z.array(EcosystemKnowledgeSchema).optional().describe('生态知识包列表'),
+  total: z.number().int().nonnegative().optional().describe('返回的生态知识包数量'),
 });
 
 // 构建类工具 schema 占位：pack_deb / pack_rpm / pack_appimage / pack_windows /
@@ -130,6 +159,9 @@ export type InspectProjectOutput = z.infer<typeof InspectProjectOutputSchema>;
 export type GeneratePackagingPlanInput = z.infer<typeof GeneratePackagingPlanInputSchema>;
 export type GeneratePackagingPlanOutput = z.infer<typeof GeneratePackagingPlanOutputSchema>;
 
+export type GetEcosystemKnowledgeInput = z.infer<typeof GetEcosystemKnowledgeInputSchema>;
+export type GetEcosystemKnowledgeOutput = z.infer<typeof GetEcosystemKnowledgeOutputSchema>;
+
 /**
  * Single source of truth for MCP tool input contracts.
  * The registry and executor both consume this map; do not duplicate schemas.
@@ -137,6 +169,7 @@ export type GeneratePackagingPlanOutput = z.infer<typeof GeneratePackagingPlanOu
 export const ToolInputSchemas = {
   inspect_project: InspectProjectInputSchema,
   generate_packaging_plan: GeneratePackagingPlanInputSchema,
+  get_ecosystem_knowledge: GetEcosystemKnowledgeInputSchema,
 } as const;
 
 export type ToolName = keyof typeof ToolInputSchemas;

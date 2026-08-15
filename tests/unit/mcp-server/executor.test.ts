@@ -84,4 +84,20 @@ describe('Executor - 路由到真实能力', () => {
     expect((result as { plan_path?: string }).plan_path).toContain('Forge.md');
     fs.rmSync(path.join(projDir, 'Forge.md'), { force: true });
   });
+
+  it('get_ecosystem_knowledge 返回已注册生态知识包', async () => {
+    const result = await executeTool('get_ecosystem_knowledge', {});
+
+    expect(result.status).toBe('success');
+    const output = result as { total?: number; ecosystems?: { id: string }[] };
+    expect(output.total).toBeGreaterThanOrEqual(2);
+    expect(output.ecosystems?.map((e) => e.id)).toContain('linux/ubuntu');
+  });
+
+  it('get_ecosystem_knowledge 查询未注册生态返回 ecosystem_not_found', async () => {
+    const result = await executeTool('get_ecosystem_knowledge', { ecosystem: 'desktop/windows' });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('ecosystem_not_found');
+  });
 });

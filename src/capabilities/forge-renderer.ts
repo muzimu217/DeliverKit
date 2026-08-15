@@ -1,7 +1,12 @@
+/**
+ * Forge.md renderer — 由生态知识包驱动，支持多目标 delivery_targets。
+ */
+
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTextFile } from './utils/filesystem.js';
-import type { DecisionBasis, InspectProjectOutput } from './types.js';
+import type { InspectProjectOutput } from './types.js';
+import type { DeliveryTargetPlan } from './plan-decision-engine.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_CANDIDATES = [
@@ -13,77 +18,99 @@ const TEMPLATE_CANDIDATES = [
 export interface ForgeRenderContext {
   sourceDir: string;
   inspectResult: InspectProjectOutput;
-  goals: string[];
-  decisions: DecisionBasis;
+  deliveryTargets: DeliveryTargetPlan[];
   risks: string[];
-  platform?: string;
+  nextActions: string[];
 }
 
 export function renderForgeMd(context: ForgeRenderContext): string {
-  const { inspectResult: inspection, goals, decisions, risks } = context;
-  const isHarmony = context.platform === 'harmonyos';
+  const { inspectResult: inspection, deliveryTargets, risks, nextActions } = context;
   const template = loadTemplate();
   const projectName = inferProjectName(context.sourceDir);
   const entry = inspection.entrypoints?.[0] || '（未检测到）';
-
-  const decisionsSection = isHarmony
-    ? [
-        `- Why HarmonyOS: 鸿蒙原生应用，Stage 模型，脱离 AOSP`,
-        `- 产物形态: ${hasGoal(goals, 'app') ? 'APP（上架）' : 'HAP（调试分发）'}`,
-        `- Why API: ${decisions.target_version}`,
-        `- 构建方式: ${decisions.build_method}`,
-        `- 兼容性: ${(decisions.compatibility_notes || []).join('；') || '基于内置默认值'}`,
-      ].join('\n')
-    : [
-        `- Why Docker: ${hasGoal(goals, 'docker') ? 'v0.1 硬闭环，容器隔离、部署简单' : '未选择 Docker'}`,
-        `- Why deb: ${hasGoal(goals, 'deb') ? '目标为 Ubuntu + systemd，系统级安装' : '未选择 deb（可选）'}`,
-        `- Why Ubuntu version: ${decisions.target_version}`,
-        `- Why base image: 与项目语言（${inspection.language || '未知'}）匹配`,
-        `- 兼容性: ${(decisions.compatibility_notes || []).join('；') || '基于内置默认值'}`,
-      ].join('\n');
-
-  const risksSection = risks.map((risk) => `- ${risk}`).join('\n');
-
-  const nextActions = isHarmony
-    ? [
-        '- 审查上方 Decisions 和 Risks 段',
-        `- 确认目标平台：${decisions.target_platform}`,
-        '- 调用 pack_harmonyos_app 执行构建（携带本文件路径作为 plan_path）',
-        '- 上架前在 AppGallery Connect 配置正式签名（.cer / .p12 / .p7b）',
-        '- 发布 APP 上传 AGC 提交审核，处理驳回意见后发布',
-      ]
-    : [
-        '- 审查上方 Decisions 和 Risks 段',
-        `- 确认目标平台：${decisions.target_platform}`,
-        '- 确认后调用 build_docker_image（携带本文件路径作为 plan_path）',
-      ];
-  if (!isHarmony && !inspection.existing_packaging?.dockerfile) {
-    nextActions.push('- 项目缺少 Dockerfile，构建时将自动生成默认模板');
-  }
+  const projectType = inferProjectType(deliveryTargets);
 
   return template
     .replace(/{{generated_at}}/g, new Date().toISOString())
     .replace(/{{project_name}}/g, projectName)
-    .replace(/{{project_type}}/g, isHarmony ? 'mobile' : 'servers')
-    .replace(/{{language}}/g, inspection.language || (isHarmony ? 'ArkTS' : '未知'))
-    .replace(/{{runtime}}/g, inspection.runtime || (isHarmony ? 'ArkUI / 方舟编译器' : '未知'))
+    .replace(/{{project_type}}/g, projectType)
+    .replace(/{{language}}/g, inspection.language || (projectType === 'mobile' ? 'ArkTS' : '未知'))
+    .replace(/{{runtime}}/g, inspection.runtime || (projectType === 'mobile' ? 'ArkUI / 方舟编译器' : '未知'))
     .replace(/{{entry}}/g, entry)
-    .replace(/{{primary_artifact}}/g, goals[0] || (isHarmony ? 'HarmonyOS APP' : 'Docker image'))
-    .replace(/{{secondary_artifact}}/g, goals[1] || '无')
-    .replace(/{{target_platform}}/g, decisions.target_platform || 'linux/amd64')
-    .replace(/{{target_users}}/g, isHarmony ? '鸿蒙开发者/独立开发者（上架分发）' : '社团成员/独立开发者（本地分发）')
-    .replace(/{{docker_strategy}}/g, isHarmony ? '不适用（鸿蒙用 hvigorw 构建）' : hasGoal(goals, 'docker') ? 'build local linux/amd64 image' : '可选')
-    .replace(/{{deb_strategy}}/g, isHarmony ? '不适用（鸿蒙用 APP/HAP）' : hasGoal(goals, 'deb') ? 'package app + systemd service（可选）' : '不构建')
-    .replace(/{{base_image}}/g, decisions.base_image || 'python:3.10-slim')
-    .replace(/{{system_target}}/g, decisions.target_version || 'ubuntu-22.04')
-    .replace(/{{decisions_section}}/g, decisionsSection)
-    .replace(/{{risks_section}}/g, risksSection)
-    .replace(/{{verify_command}}/g, isHarmony ? 'hdc install <app>.app（已注册调试设备）' : inspection.language === 'Python' ? `docker run ${projectName}:latest` : 'docker run <image>:latest')
-    .replace(/{{next_actions_section}}/g, nextActions.join('\n'));
+    .replace(/{{delivery_targets_section}}/g, renderDeliveryTargets(deliveryTargets))
+    .replace(/{{decisions_section}}/g, renderDecisions(deliveryTargets))
+    .replace(/{{risks_section}}/g, risks.length > 0 ? risks.map((r) => `- ${r}`).join('\n') : '- （无）')
+    .replace(/{{verify_command}}/g, renderVerifyCommand(deliveryTargets))
+    .replace(/{{results_section}}/g, renderResults(deliveryTargets))
+    .replace(/{{next_actions_section}}/g, nextActions.map((a) => `- ${a}`).join('\n'));
 }
 
-function hasGoal(goals: string[], expected: string): boolean {
-  return goals.some((goal) => goal.toLowerCase().includes(expected));
+function renderDeliveryTargets(targets: DeliveryTargetPlan[]): string {
+  return targets
+    .map((target) => {
+      const k = target.knowledge;
+      const artifacts = target.artifactIds
+        .map((id) => {
+          const artifact = k.artifacts.find((a) => a.id === id);
+          return artifact ? `${artifact.id}${artifact.extension ? ` (${artifact.extension})` : ''}` : id;
+        })
+        .join('、');
+      const signing = k.signing.required ? `required（${k.signing.type}）` : 'not required';
+      const store = k.distribution.store ?? '无官方商店（本地分发）';
+      return [
+        `### ${k.name}（${k.id}）`,
+        `- 生态: ${k.ecosystem}`,
+        `- 产物: ${artifacts}`,
+        `- 签名: ${signing}`,
+        `- 上架/分发: ${store}`,
+        `- 工具链: ${k.toolchain.build_os}（cross_buildable=${k.toolchain.cross_buildable}）→ ${k.toolchain.required.join('、')}`,
+        `- 验证: ${k.verification.install}`,
+      ].join('\n');
+    })
+    .join('\n\n');
+}
+
+function renderDecisions(targets: DeliveryTargetPlan[]): string {
+  const lines: string[] = [];
+  for (const target of targets) {
+    const k = target.knowledge;
+    lines.push(`- [${k.id}] 目标生态: ${k.name} — ${k.summary}`);
+    const artifactNotes = target.artifactIds.map((id) => {
+      const artifact = k.artifacts.find((a) => a.id === id);
+      return artifact?.note ? `${id}（${artifact.note}）` : id;
+    });
+    lines.push(`- [${k.id}] 产物选择: ${artifactNotes.join('、')}`);
+    lines.push(
+      `- [${k.id}] 签名: ${
+        k.signing.required
+          ? `${k.signing.type}（${k.signing.how_to_get ?? '见知识包'}）`
+          : '无需签名（本地分发）'
+      }`
+    );
+    lines.push(
+      `- [${k.id}] 工具链约束: 构建 OS=${k.toolchain.build_os}，cross_buildable=${k.toolchain.cross_buildable}`
+    );
+  }
+  return lines.join('\n');
+}
+
+function renderVerifyCommand(targets: DeliveryTargetPlan[]): string {
+  const commands = targets.map((t) => t.knowledge.verification.install);
+  return commands.length === 1 ? commands[0] : commands.join(' ；或 ');
+}
+
+function renderResults(targets: DeliveryTargetPlan[]): string {
+  return targets
+    .flatMap((t) => t.artifactIds.map((a) => `- ${t.id}/${a}: pending`))
+    .join('\n');
+}
+
+function inferProjectType(targets: DeliveryTargetPlan[]): string {
+  const families = new Set(targets.map((t) => t.knowledge.ecosystem));
+  if (families.size === 1) {
+    return [...families][0] === 'harmonyos' ? 'mobile' : 'servers';
+  }
+  return 'multi-ecosystem';
 }
 
 function inferProjectName(sourceDir: string): string {
@@ -122,9 +149,9 @@ function loadTemplate(): string {
   return FALLBACK_TEMPLATE;
 }
 
-const FALLBACK_TEMPLATE = `# ForgeKit Packaging Plan
+const FALLBACK_TEMPLATE = `# DeliverKit Delivery Plan
 
-> 由 ForgeKit 自动生成。生成时间：{{generated_at}}
+> 由 DeliverKit 自动生成。生成时间：{{generated_at}}
 
 ## Project
 - Name: {{project_name}}
@@ -133,15 +160,8 @@ const FALLBACK_TEMPLATE = `# ForgeKit Packaging Plan
 - Runtime: {{runtime}}
 - Entry: {{entry}}
 
-## Goals
-- Primary artifact: {{primary_artifact}}
-- Secondary artifact: {{secondary_artifact}}
-- Target platform: {{target_platform}}
-
-## Build Strategy
-- Docker: {{docker_strategy}}
-- Base image: {{base_image}}
-- System target: {{system_target}}
+## Delivery Targets
+{{delivery_targets_section}}
 
 ## Decisions
 {{decisions_section}}
@@ -149,12 +169,12 @@ const FALLBACK_TEMPLATE = `# ForgeKit Packaging Plan
 ## Risks
 {{risks_section}}
 
-## Verify
-- {{verify_command}}
+## Commands
+- Inspect: deliverkit inspect .
+- Verify: {{verify_command}}
 
 ## Results
-- Docker image: pending
-- Deb artifact: pending
+{{results_section}}
 
 ## Next Actions
 {{next_actions_section}}

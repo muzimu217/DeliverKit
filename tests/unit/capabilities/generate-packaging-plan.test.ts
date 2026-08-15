@@ -1,17 +1,17 @@
 /**
- * M3: generate_packaging_plan 单元测试
+ * generate_packaging_plan 单元测试（知识包驱动、多目标）
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
 import { generatePackagingPlan } from '../../../src/capabilities/generate-packaging-plan.js';
 
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'forgekit-plan-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-plan-'));
 });
 
 afterAll(() => {
@@ -24,113 +24,83 @@ function makeProject(name: string): string {
   return dir;
 }
 
-describe('M3: generate_packaging_plan', () => {
-  it('为 Python 项目生成 Forge.md（Docker 目标）', async () => {
-    const dir = makeProject('python-docker');
+describe('generate_packaging_plan（知识包驱动）', () => {
+  it('为 Python 项目生成 deb 交付计划（Forge.md）', async () => {
+    const dir = makeProject('python-deb');
     fs.writeFileSync(path.join(dir, 'app.py'), 'from flask import Flask');
     fs.writeFileSync(path.join(dir, 'requirements.txt'), 'flask==2.3.0\n');
 
-    const result = await generatePackagingPlan(dir, ['Docker']);
+    const result = await generatePackagingPlan(dir, ['deb']);
 
     expect(result.status).toBe('success');
     expect(result.plan_path).toBe(path.join(dir, 'Forge.md'));
-    expect(result.plan_path).toBeTruthy();
-
-    // 验证文件已写入
     expect(fs.existsSync(result.plan_path!)).toBe(true);
 
-    // 验证内容
     const content = fs.readFileSync(result.plan_path!, 'utf-8');
-    expect(content).toContain('# ForgeKit Packaging Plan');
-    expect(content).toContain('Python');
-    expect(content).toContain('app.py');
-    expect(content).toContain('## Decisions');
-    expect(content).toContain('Why Docker');
+    expect(content).toContain('# DeliverKit Delivery Plan');
+    expect(content).toContain('## Delivery Targets');
+    expect(content).toContain('linux/ubuntu');
+    expect(content).toContain('deb');
+    expect(content).toContain('## Risks');
   });
 
-  it('决策依据包含 Ubuntu 版本和兼容性信息', async () => {
-    const dir = makeProject('python-version');
+  it('delivery_targets 摘要包含生态/产物/签名信息', async () => {
+    const dir = makeProject('python-summary');
     fs.writeFileSync(path.join(dir, 'app.py'), '');
 
-    const result = await generatePackagingPlan(dir, ['Docker'], 'ubuntu-22.04');
+    const result = await generatePackagingPlan(dir, ['deb']);
 
-    expect(result.status).toBe('success');
-    expect(result.decision_basis?.target_version).toContain('22.04');
-    // decision-rules.yaml 存在时应有兼容性说明
-    if (result.decision_basis?.compatibility_notes?.length) {
-      expect(result.decision_basis.compatibility_notes.some((n) => n.includes('glibc'))).toBe(true);
-    }
+    expect(result.delivery_targets).toHaveLength(1);
+    expect(result.delivery_targets![0].ecosystem).toBe('linux/ubuntu');
+    expect(result.delivery_targets![0].artifacts).toContain('deb');
+    expect(result.delivery_targets![0].signing_required).toBe(false);
+    expect(result.delivery_targets![0].store).toBeNull();
   });
 
-  it('根据项目语言写入对应基础镜像', async () => {
-    const dir = makeProject('typescript-image');
-    fs.writeFileSync(
-      path.join(dir, 'package.json'),
-      JSON.stringify({ name: 'typescript-image', scripts: { start: 'node index.js' } })
-    );
-    fs.writeFileSync(path.join(dir, 'index.js'), 'console.log("ready")');
+  it('鸿蒙工程自动推断 harmonyos 并写入上架/签名规则', async () => {
+    const dir = makeProject('harmony-auto');
+    fs.mkdirSync(path.join(dir, 'AppScope'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'AppScope', 'app.json5'), '{}');
+    fs.writeFileSync(path.join(dir, 'build-profile.json5'), '{}');
 
-    const result = await generatePackagingPlan(dir, ['Docker']);
+    const result = await generatePackagingPlan(dir, []);
 
     expect(result.status).toBe('success');
-    expect(result.decision_basis?.base_image).toBe('node:18-alpine');
-    expect(fs.readFileSync(result.plan_path!, 'utf-8')).toContain('Base image: node:18-alpine');
-  });
+    expect(result.delivery_targets![0].ecosystem).toBe('mobile/harmonyos');
+    expect(result.delivery_targets![0].signing_required).toBe(true);
 
-  it('Docker + deb 双目标时生成对应决策', async () => {
-    const dir = makeProject('python-deb');
-    fs.writeFileSync(path.join(dir, 'app.py'), '');
-
-    const result = await generatePackagingPlan(dir, ['Docker', 'deb']);
-
-    expect(result.status).toBe('success');
     const content = fs.readFileSync(result.plan_path!, 'utf-8');
-    expect(content).toContain('Why deb');
+    expect(content).toContain('mobile/harmonyos');
+    expect(content).toContain('AppGallery');
+    expect(content).toContain('agc');
   });
 
-  it('目标环境 20.04 → 选择 Ubuntu 20.04', async () => {
-    const dir = makeProject('python-2004');
+  it('多目标：deb + harmonyos 同时生成两个 delivery target', async () => {
+    const dir = makeProject('multi-target');
     fs.writeFileSync(path.join(dir, 'app.py'), '');
 
-    const result = await generatePackagingPlan(dir, ['Docker'], 'ubuntu-20.04');
+    const result = await generatePackagingPlan(dir, ['deb', 'harmonyos']);
 
-    expect(result.decision_basis?.target_version).toContain('20.04');
+    expect(result.status).toBe('success');
+    const ids = result.delivery_targets!.map((t) => t.ecosystem);
+    expect(ids).toContain('linux/ubuntu');
+    expect(ids).toContain('mobile/harmonyos');
   });
 
-  it('未支持的目标环境不会静默回退到 Ubuntu', async () => {
-    const dir = makeProject('unsupported-target');
+  it('未支持的目标返回 invalid_input 且不写 Forge.md', async () => {
+    const dir = makeProject('unsupported');
     fs.writeFileSync(path.join(dir, 'app.py'), '');
 
-    const result = await generatePackagingPlan(dir, ['Docker'], 'centos-9');
+    const result = await generatePackagingPlan(dir, ['windows-msi']);
 
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('invalid_input');
-    expect(result.error?.summary).toContain('centos-9');
+    expect(result.error?.summary).toContain('windows-msi');
     expect(fs.existsSync(path.join(dir, 'Forge.md'))).toBe(false);
   });
 
-  it('Risks 段包含风险提示', async () => {
-    const dir = makeProject('python-risks');
-    fs.writeFileSync(path.join(dir, 'app.py'), '');
-
-    await generatePackagingPlan(dir, ['Docker']);
-
-    const content = fs.readFileSync(path.join(dir, 'Forge.md'), 'utf-8');
-    expect(content).toContain('## Risks');
-    expect(content).toContain('glibc');
-  });
-
-  it('Next Actions 包含 build_docker_image 提示', async () => {
-    const dir = makeProject('python-next');
-    fs.writeFileSync(path.join(dir, 'app.py'), '');
-
-    const result = await generatePackagingPlan(dir, ['Docker']);
-
-    expect(result.next_actions?.some((a) => a.includes('build_docker_image'))).toBe(true);
-  });
-
   it('源目录不存在时返回错误', async () => {
-    const result = await generatePackagingPlan('/nonexistent/xyz', ['Docker']);
+    const result = await generatePackagingPlan('/nonexistent/xyz', ['deb']);
 
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('path_not_found');

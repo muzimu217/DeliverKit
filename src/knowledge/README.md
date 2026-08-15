@@ -1,30 +1,28 @@
-# Knowledge reference assets
+# Knowledge
 
-The YAML files in this directory are curated packaging notes and decision
-references:
+生态知识包（Ecosystem Knowledge Packs）是 DeliverKit 的"给 AI 用"知识层。
+Agent 通过 MCP 工具 `get_ecosystem_knowledge` 显式读取某个生态的产物形态、
+工具链、签名硬约束、上架规则与验证方法。
 
-- `decisions.yaml`: cross-platform selection ideas.
-- `docker-best-practices.yaml`: Docker and multi-architecture guidance.
-- `deb-packaging.yaml`: Debian/Ubuntu packaging guidance.
+## 活跃的知识层
 
-## Current status
+- `ecosystems/*.yaml` — 每个文件描述一个生态。结构由 `ecosystem-schema.ts`
+  （zod schema，单一事实源）定义，`ecosystem-loader.ts` 负责加载与校验。
+- `ecosystem-schema.ts` — 知识包 schema + JSON Schema 导出。
+- `ecosystem-loader.ts` — list / load / 校验，校验失败返回可行动错误。
 
-These files are shipped with the npm package, but production code does not
-currently load or query them. They are reference data, not an active runtime
-knowledge layer. Editing them will not change MCP tool output today.
+当前已注册生态：`linux/ubuntu`、`mobile/harmonyos`。
 
-The only external rule file currently consumed by a capability is
-`../systems/servers/ubuntu/decision-rules.yaml`, used by
-`generate_packaging_plan`.
+## 新增生态
 
-## Activation requirements
+在 `ecosystems/` 下新增一个符合 `ecosystem-schema.ts` 的 YAML 文件即可注册，
+无需改代码。校验失败会通过 `get_ecosystem_knowledge` 返回可行动错误。
 
-Before any knowledge file is described as runtime behavior, add:
+## 迁移中的参考数据
 
-1. A schema and parser with actionable validation errors.
-2. An explicit loader owned by the capability that uses the data.
-3. Tests proving a rule change affects the expected output.
-4. Versioning or provenance fields so rule updates can be audited.
+以下文件是从 ForgeKit 迁移而来的早期参考数据，逐步被 `ecosystems/*.yaml` 取代，
+不参与 MCP 输出：
 
-Until then, keep these files useful as reviewed source material and avoid claims
-that an Agent reads them automatically.
+- `decisions.yaml` — 跨平台选型想法。
+- `deb-packaging.yaml` — Debian/Ubuntu 打包笔记（已迁移进 `ecosystems/linux-ubuntu.yaml`）。
+- `mobile/harmonyos-packaging.yaml` — 鸿蒙打包笔记（已迁移进 `ecosystems/harmonyos.yaml`）。

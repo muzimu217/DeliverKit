@@ -16,6 +16,7 @@ import type { ForgeKitResult } from '../../capabilities/types.js';
 
 import { inspectProject } from '../../capabilities/inspect-project.js';
 import { generatePackagingPlan } from '../../capabilities/generate-packaging-plan.js';
+import { getEcosystemKnowledge } from '../../capabilities/get-ecosystem-knowledge.js';
 
 /**
  * Execute tool call
@@ -66,6 +67,9 @@ export async function executeTool(
         input.goals as string[],
         input.target_environment as string | undefined
       );
+
+    case 'get_ecosystem_knowledge':
+      return getEcosystemKnowledge(input.ecosystem as string | undefined);
 
   }
 }

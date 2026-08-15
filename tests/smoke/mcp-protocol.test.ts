@@ -28,7 +28,8 @@ describe('MCP 协议层冒烟测试', () => {
 
       expect(toolNames).toContain('inspect_project');
       expect(toolNames).toContain('generate_packaging_plan');
-      expect(tools.length).toBe(2);
+      expect(toolNames).toContain('get_ecosystem_knowledge');
+      expect(tools.length).toBe(3);
     });
 
     it('所有工具都有正确的 Schema', () => {

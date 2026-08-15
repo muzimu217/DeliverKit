@@ -89,7 +89,7 @@ async function main(): Promise<void> {
 
   console.error(`${SERVER_NAME} v${SERVER_VERSION} started`);
   console.error('DeliverKit MCP Server ready for AI agent connections');
-  console.error('已注册工具：inspect_project, generate_packaging_plan');
+  console.error('已注册工具：inspect_project, generate_packaging_plan, get_ecosystem_knowledge');
 }
 
 main().catch((error) => {

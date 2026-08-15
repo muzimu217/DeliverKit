@@ -33,6 +33,7 @@ try {
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
     'generate_packaging_plan',
+    'get_ecosystem_knowledge',
     'inspect_project',
   ]);
 
@@ -47,6 +48,16 @@ try {
   assert.equal(result.status, 'success');
   assert.equal(result.language, 'Python');
   assert.ok(result.entrypoints.includes('app.py'));
+
+  const knowledgeResponse = await client.callTool({
+    name: 'get_ecosystem_knowledge',
+    arguments: { ecosystem: 'linux/ubuntu' },
+  });
+  const knowledge = JSON.parse(knowledgeResponse.content[0].text);
+  assert.equal(knowledge.status, 'success');
+  assert.equal(knowledge.total, 1);
+  assert.equal(knowledge.ecosystems[0].id, 'linux/ubuntu');
+  assert.equal(knowledge.ecosystems[0].signing.required, false);
 
   await new Promise((resolve) => setImmediate(resolve));
   const packageMetadata = JSON.parse(

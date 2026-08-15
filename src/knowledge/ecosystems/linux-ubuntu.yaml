@@ -1,0 +1,116 @@
+# Ecosystem Knowledge Pack — Ubuntu / Debian (deb)
+# 数据源：src/systems/servers/ubuntu/decision-rules.yaml + src/knowledge/deb-packaging.yaml
+# 迁移自中文 key 的旧 decision-rules.yaml，统一为英文 key。
+
+schema_version: 1
+id: "linux/ubuntu"
+ecosystem: "linux"
+name: "Ubuntu / Debian (deb)"
+status: "verified"
+updated_at: "2026-08-13"
+summary: "服务器端应用打包为 Debian 包（deb），面向 Ubuntu LTS + systemd 环境；本地分发无需签名。"
+
+artifacts:
+  - id: "deb"
+    extension: ".deb"
+    store_ready: false
+    note: "系统级安装，面向 Ubuntu + systemd"
+  - id: "docker-image"
+    extension: ""
+    store_ready: false
+    note: "容器镜像，依赖 Docker 运行时，跨发行版可移植"
+
+toolchain:
+  build_os: "linux"
+  cross_buildable: true
+  required:
+    - "dpkg-deb"
+    - "dpkg-dev"
+    - "lintian（质量检查）"
+  install_hint: "sudo apt-get install dpkg-dev lintian"
+
+signing:
+  required: false
+  type: "none"
+  issuer: null
+  how_to_get: "本地分发无需签名；发布到 apt 仓库需 GPG 签名"
+  secret_ref: null
+  risks: []
+
+distribution:
+  store: null
+  requirements:
+    - "debian/control 字段完整"
+    - "依赖声明（Depends）正确"
+    - "changelog 版本号符合规范"
+
+verification:
+  install: "dpkg -i <package>.deb"
+  run: "systemctl status <service-name>"
+  checks:
+    - "dpkg -c <package>.deb（检查包内容）"
+    - "lintian <package>.deb（质量检查）"
+    - "dpkg -I <package>.deb（检查包信息）"
+
+known_issues:
+  - id: "glibc-incompatibility"
+    severity: "high"
+    symptom: "version 'GLIBC_2.35' not found"
+    cause: "在高 glibc 版本构建，在低版本运行"
+    fix:
+      - "在目标系统最低版本（Ubuntu 20.04）构建"
+      - "静态链接（Go/Rust）"
+      - "容器化部署"
+
+  - id: "python-version-mismatch"
+    severity: "medium"
+    symptom: "依赖 python3 >= 3.10，但系统只有 3.8"
+    cause: "Python 版本声明与目标系统不符"
+    fix:
+      - "降低依赖版本声明（python3 >= 3.8）"
+      - "postinst 安装指定版本"
+      - "虚拟环境隔离"
+
+  - id: "architecture-mismatch"
+    severity: "medium"
+    symptom: "dpkg: package architecture (amd64) does not match system (arm64)"
+    cause: "包架构与系统架构不匹配"
+    fix:
+      - "包名标注架构（amd64/arm64）"
+      - "多架构构建（docker buildx）"
+
+compatibility:
+  - target: "Ubuntu 20.04 LTS"
+    glibc: "2.31"
+    python: "3.8"
+    node: "12.x/14.x"
+    remark: "最低 LTS，构建产物向上兼容"
+
+  - target: "Ubuntu 22.04 LTS"
+    glibc: "2.35"
+    python: "3.10"
+    node: "18 LTS"
+    remark: "推荐 LTS，平衡稳定性与新特性"
+
+  - target: "Ubuntu 24.04 LTS"
+    glibc: "2.39"
+    python: "3.12"
+    node: "20 LTS"
+    remark: "最新 LTS，产物不可向下兼容"
+
+decision_rules:
+  version_selection:
+    - condition: "目标版本已知"
+      recommendation: "选择匹配的 LTS 版本构建"
+      risk: "版本不匹配可能导致 glibc 或依赖不兼容"
+    - condition: "目标版本未知"
+      recommendation: "选择 Ubuntu 20.04 LTS 构建（glibc 2.31 最低，向上兼容）"
+      risk: "无法使用最新特性"
+  architecture_selection:
+    - condition: "目标架构未知"
+      recommendation: "x86_64（amd64），覆盖大部分服务器环境"
+  artifact_selection:
+    - condition: "目标系统使用 systemd"
+      recommendation: "deb 包 + systemd service"
+    - condition: "目标系统不使用 systemd 或需跨发行版"
+      recommendation: "Docker 镜像"

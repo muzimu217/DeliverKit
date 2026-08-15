@@ -1,142 +1,92 @@
+/**
+ * Plan decision engine — 由生态知识包驱动。
+ *
+ * 从知识包推导决策依据、风险与后续动作，取代旧的中文 key decision-rules 分支。
+ * 支持多目标：一个计划可覆盖多个生态（delivery_targets）。
+ */
+
+import type { EcosystemKnowledge } from '../knowledge/ecosystem-schema.js';
 import type { DecisionBasis, InspectProjectOutput } from './types.js';
-import type { DecisionRules } from '../systems/adapter-loader.js';
 
-export function deriveDecisions(
-  goals: string[],
-  inspect: InspectProjectOutput,
-  rules: DecisionRules | null,
-  targetEnvironment?: string
-): DecisionBasis {
-  // 鸿蒙（HarmonyOS NEXT）分支
-  if (rules?.平台 === 'harmonyos') {
-    const api = parseHarmonyApi(targetEnvironment, inspect.runtime);
-    const isApp = goals.some((g) => g.toLowerCase().includes('app'));
-    return {
-      target_platform: `harmonyos/${api}`,
-      target_version: `HarmonyOS NEXT API ${api}`,
-      base_image: '不适用（方舟编译器 AOT，非容器镜像）',
-      build_method: isApp
-        ? 'hvigorw assembleApp（发布上架）'
-        : 'hvigorw assembleHap（调试分发）',
-      compatibility_notes: [
-        `HarmonyOS NEXT（API ${api}），Stage 模型，脱离 AOSP`,
-        '调试 HAP 可装已注册设备；发布 APP 需 AGC 正式签名',
-      ],
-      risks_acknowledged: [],
-    };
+/** 一个已解析的交付目标：生态知识包 + 选定产物。 */
+export interface DeliveryTargetPlan {
+  id: string;
+  knowledge: EcosystemKnowledge;
+  artifactIds: string[];
+}
+
+/** 从主目标推导决策依据（用于 MCP 结果的 decision_basis 字段）。 */
+export function deriveDecisionBasis(targets: DeliveryTargetPlan[]): DecisionBasis {
+  const primary = targets[0];
+  if (!primary) {
+    return { target_platform: 'unknown', build_method: '未解析到交付目标' };
   }
 
-  const isDocker = goals.some((goal) => goal.toLowerCase().includes('docker'));
-  const isDeb = goals.some((goal) => goal.toLowerCase().includes('deb'));
-  const ubuntuVersion = selectUbuntuVersion(targetEnvironment);
-  const baseImage = selectBaseImage(inspect.language);
-  const compatibilityNotes = getCompatibilityNotes(rules, ubuntuVersion);
-  const buildMethodParts: string[] = [];
-
-  if (isDocker) {
-    buildMethodParts.push('Docker 镜像构建（v0.1 硬闭环）');
-  }
-  if (isDeb) {
-    buildMethodParts.push('Ubuntu deb 包（可选，仅 systemd 目标）');
-  }
-
+  const { knowledge, artifactIds } = primary;
   return {
-    target_platform: `ubuntu-${ubuntuVersion}`,
-    target_version: `Ubuntu ${ubuntuVersion} LTS`,
-    base_image: baseImage,
-    build_method: buildMethodParts.join(' + ') || 'Docker 镜像（默认硬闭环）',
-    compatibility_notes: compatibilityNotes,
+    target_platform: knowledge.ecosystem,
+    target_version: knowledge.compatibility[0]?.target ?? knowledge.name,
+    build_method: `${knowledge.name}（${artifactIds.join(', ')}）`,
+    compatibility_notes: knowledge.compatibility.map(
+      (row) => `${row.target}${row.remark ? `: ${row.remark}` : ''}`
+    ),
     risks_acknowledged: [],
   };
 }
 
-export function deriveRisks(rules: DecisionRules | null, goals: string[]): string[] {
-  const risks = rules?.风险提示 ? [...rules.风险提示] : [
-    'glibc 版本不兼容：高版本构建的产物无法在低版本运行',
-    '原生依赖缺失：目标系统需预装所需原生库',
-    'Docker daemon 不可用：本地构建需 Docker 运行',
-  ];
+/** 汇总全部目标的已知失败模式 + 签名风险（去重）。 */
+export function deriveRisks(targets: DeliveryTargetPlan[]): string[] {
+  const risks: string[] = [];
+  const seen = new Set<string>();
 
-  if (rules?.平台 === 'harmonyos') {
-    if (goals.some((g) => g.toLowerCase().includes('app'))) {
-      risks.push('发布 APP 需 AGC 正式签名与 Profile，调试证书将被审核拒绝');
+  for (const target of targets) {
+    const { knowledge } = target;
+    for (const issue of knowledge.known_issues) {
+      add(risks, seen, `[${knowledge.name}] ${issue.symptom}`);
     }
-  } else if (goals.some((goal) => goal.toLowerCase().includes('deb'))) {
-    risks.push('deb 仅适用于 Ubuntu + systemd 环境，其他发行版需用 Docker');
+    for (const risk of knowledge.signing.risks) {
+      add(risks, seen, `[${knowledge.name}] ${risk}`);
+    }
   }
+
   return risks;
 }
 
+/** 生成后续动作：审查契约 + 各生态的构建与签名动作。 */
 export function deriveNextActions(
-  goals: string[],
-  inspect: InspectProjectOutput,
-  rules?: DecisionRules | null
+  targets: DeliveryTargetPlan[],
+  inspect: InspectProjectOutput
 ): string[] {
-  const actions = ['审查生成的 Forge.md（Decisions / Risks 段）'];
-  if (rules?.平台 === 'harmonyos') {
-    actions.push('调用 pack_harmonyos_app 执行构建（需携带 plan_path）');
-    actions.push('上架前在 AppGallery Connect 配置正式签名（.cer / .p12 / .p7b）');
-    return actions;
+  const actions = ['审查生成的 Forge.md（Delivery Targets / Decisions / Risks 段）'];
+
+  for (const target of targets) {
+    const { knowledge, artifactIds } = target;
+    if (knowledge.ecosystem === 'harmonyos') {
+      actions.push('调用 pack_harmonyos_app 执行构建（需携带 plan_path）');
+      if (knowledge.signing.required) {
+        actions.push(
+          `上架前在 ${knowledge.distribution.store} 配置正式签名：${knowledge.signing.how_to_get ?? '见知识包'}`
+        );
+      }
+      continue;
+    }
+    if (artifactIds.includes('deb')) {
+      actions.push('调用 pack_deb 构建 deb 包（需携带 plan_path）');
+    }
+    if (artifactIds.includes('docker-image')) {
+      actions.push('调用 build_docker_image 构建镜像（需携带 plan_path）');
+      if (!inspect.existing_packaging?.dockerfile) {
+        actions.push('项目缺少 Dockerfile，构建时将自动生成默认模板');
+      }
+    }
   }
-  if (goals.some((goal) => goal.toLowerCase().includes('docker'))) {
-    actions.push('调用 build_docker_image 执行构建（需携带 plan_path）');
-  }
-  if (goals.some((goal) => goal.toLowerCase().includes('deb'))) {
-    actions.push('（可选）调用 pack_deb 构建 deb 包');
-  }
-  if (!inspect.existing_packaging?.dockerfile) {
-    actions.push('项目无 Dockerfile，构建时自动生成');
-  }
+
   return actions;
 }
 
-function selectUbuntuVersion(targetEnvironment?: string): string {
-  if (targetEnvironment?.includes('20.04')) {
-    return '20.04';
+function add(list: string[], seen: Set<string>, item: string): void {
+  if (!seen.has(item)) {
+    seen.add(item);
+    list.push(item);
   }
-  if (targetEnvironment?.includes('24.04')) {
-    return '24.04';
-  }
-  return '22.04';
-}
-
-function selectBaseImage(language?: string): string {
-  if (language === 'Python') {
-    return 'python:3.10-slim';
-  }
-  if (language === 'TypeScript' || language === 'JavaScript') {
-    return 'node:18-alpine';
-  }
-  if (language === 'Go') {
-    return 'golang:1.21-alpine';
-  }
-  return 'ubuntu:22.04';
-}
-
-function getCompatibilityNotes(rules: DecisionRules | null, version: string): string[] {
-  const row = rules?.兼容性对照表?.[`Ubuntu_${version.replace('.', '_')}`];
-  if (!row) {
-    return [];
-  }
-  return [
-    `Ubuntu ${version}: glibc ${row.glibc}, Python ${row.python}, Node ${row.node}`,
-    `兼容性：${row.remark}`,
-  ];
-}
-
-/** 从 targetEnvironment（如 harmonyos-17）解析 API 版本，默认 17。 */
-function parseHarmonyApi(targetEnvironment?: string, detectedRuntime?: string): string {
-  const match = targetEnvironment?.match(/(\d{1,2})/);
-  if (match) {
-    const api = parseInt(match[1], 10);
-    if (api >= 9 && api <= 24) {
-      return String(api);
-    }
-  }
-  const detected = detectedRuntime?.match(/API\s+(\d{1,2})/i);
-  if (detected) {
-    const api = parseInt(detected[1], 10);
-    if (api >= 9 && api <= 24) {return String(api);}
-  }
-  return '17';
 }

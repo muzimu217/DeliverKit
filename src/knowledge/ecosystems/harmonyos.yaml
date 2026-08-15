@@ -1,0 +1,118 @@
+# Ecosystem Knowledge Pack — HarmonyOS (HAP / APP)
+# 数据源：src/systems/mobile/harmonyos/decision-rules.yaml + packaging-guide
+# 迁移自中文 key 的旧 decision-rules.yaml，统一为英文 key。
+
+schema_version: 1
+id: "mobile/harmonyos"
+ecosystem: "harmonyos"
+name: "HarmonyOS (HAP / APP)"
+status: "experimental"
+updated_at: "2026-08-13"
+summary: "鸿蒙原生应用（HarmonyOS NEXT）打包与上架：发布 APP 必须经 AppGallery Connect 正式签名。"
+
+artifacts:
+  - id: "hap"
+    extension: ".hap"
+    store_ready: false
+    note: "调试分发，可安装到已注册设备"
+  - id: "app"
+    extension: ".app"
+    store_ready: true
+    note: "上架 AppGallery 的唯一产物形态"
+
+toolchain:
+  build_os: "linux-or-windows"
+  cross_buildable: false
+  required:
+    - "node >= 18"
+    - "DevEco Studio / Command Line Tools"
+    - "ohpm"
+    - "hvigorw"
+    - "hdc"
+  install_hint: "安装 DevEco Studio 并配置 HarmonyOS SDK"
+
+signing:
+  required: true
+  type: "agc"
+  issuer: "AppGallery Connect（华为开发者账号）"
+  how_to_get: "实名认证 → 本地生成 CSR → AGC 签发正式 .cer → 创建发布 Profile(.p7b)"
+  secret_ref: "secret://AGC_CERT_P12, AGC_RELEASE_PROFILE_P7B"
+  risks:
+    - "release .p12 丢失将导致已上架应用无法更新，务必离线备份"
+    - "debug 签名打出的 APP 会被审核拒绝"
+    - "Profile 与 bundleName、证书绑定，更换需重新生成"
+
+distribution:
+  store: "AppGallery"
+  requirements:
+    - "隐私政策链接"
+    - "敏感权限用途说明"
+    - "内容分级"
+    - "华为开发者实名认证"
+
+verification:
+  install: "hdc install <artifact>.hap"
+  run: "hdc shell 启动应用验证"
+  checks:
+    - "SHA256 校验和"
+    - "上架前在 AGC 预审"
+
+known_issues:
+  - id: "cert-lost"
+    severity: "high"
+    symptom: "无法更新已上架应用"
+    cause: "release .p12 丢失"
+    fix:
+      - "离线备份 .p12 与密码"
+
+  - id: "debug-sign-rejected"
+    severity: "high"
+    symptom: "提交审核被拒"
+    cause: "使用 debug 签名打包 APP"
+    fix:
+      - "改用 AGC 正式签名（.cer + .p7b）"
+
+  - id: "api-incompatible"
+    severity: "medium"
+    symptom: "compatibleSdkVersion 高于目标设备 API 导致安装失败"
+    cause: "API 版本声明过高"
+    fix:
+      - "降低 compatibleSdkVersion"
+
+compatibility:
+  - target: "API_12"
+    os: "NEXT 5.0"
+    stage_model: true
+    toolchain: "DevEco 5.0"
+    remark: "较旧基线"
+
+  - target: "API_17"
+    os: "5.0.5"
+    stage_model: true
+    toolchain: "DevEco 6.x"
+    remark: "当前云手机兼容基线"
+
+  - target: "API_24"
+    os: "6.1.1"
+    stage_model: true
+    toolchain: "DevEco 6.1.1"
+    remark: "当前工具链目标版本"
+
+decision_rules:
+  artifact_selection:
+    - condition: "仅本地调试 / 内部分发"
+      recommendation: "assembleHap（调试签名自动生成）"
+    - condition: "准备上架 AppGallery"
+      recommendation: "assembleApp + AGC 正式签名"
+  api_selection:
+    - condition: "新应用无历史包袱"
+      recommendation: "默认 API 17，可按 SDK 提升到 API 24"
+      risk: "compatibleSdkVersion 高于设备版本会导致安装失败"
+    - condition: "需兼容 4.x 老设备"
+      recommendation: "目标 API 10/11"
+      risk: "无法使用 NEXT 新特性"
+  signing_configuration:
+    - condition: "调试"
+      recommendation: "DevEco 自动生成 debug 签名（p12/cer/profile）"
+    - condition: "发布上架"
+      recommendation: "AGC 签发 release 签名（正式 .cer + .p7b + 自有 .p12）"
