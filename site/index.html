@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="DeliverKit 百科：把跨生态打包、签名、公证、上架与真实验证变成可执行的知识。" />
+    <meta name="theme-color" content="#11161d" />
+    <link rel="icon" href="data:," />
+    <title>DeliverKit Encyclopedia | 交付百科</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <div class="announcement" role="status">
+      <span class="pulse-dot" aria-hidden="true"></span>
+      <span>第一阶段公开预览 · 交付知识、签名边界与验证证据已整理</span>
+      <a href="#launch">加入发布名单 <i data-lucide="arrow-up-right"></i></a>
+    </div>
+
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="DeliverKit Encyclopedia 首页">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span>DELIVERKIT <em>/ ENCYCLOPEDIA</em></span>
+      </a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" title="打开导航">
+        <i data-lucide="menu"></i><span class="sr-only">打开导航</span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="主导航">
+        <a href="#ecosystems">生态索引</a>
+        <a href="#credentials">签名指南</a>
+        <a href="#evidence">验证证据</a>
+        <a class="nav-cta" href="#launch">关注第一阶段 <i data-lucide="arrow-up-right"></i></a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero section-wrap">
+        <div class="hero-copy">
+          <p class="eyebrow"><span>DK / 01</span> 交付不是打包按钮，是一条合法链路</p>
+          <h1>DeliverKit<br /><span>交付百科</span></h1>
+          <p class="hero-lede">给 Agent 和开发者看的全生态交付地图。查清楚该在哪构建、向谁申请签名、怎样注入凭据，以及什么证据才算真的交付。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#ecosystems">浏览生态索引 <i data-lucide="arrow-down"></i></a>
+            <a class="button button-quiet" href="#credentials">获取签名材料 <i data-lucide="key-round"></i></a>
+          </div>
+          <div class="hero-proof">
+            <div><strong>06</strong><span>生态知识包</span></div>
+            <div><strong>03</strong><span>Linux 真实矩阵</span></div>
+            <div><strong>01</strong><span>统一 Release Manifest</span></div>
+          </div>
+        </div>
+        <div class="hero-visual" aria-label="DeliverKit 交付链路可视化">
+          <div class="visual-label mono">LIVE ROUTE / 2026.08</div>
+          <div class="route-map">
+            <div class="route-map-frame" aria-hidden="true"></div>
+            <div class="flow-diagram">
+              <div class="flow-connector connector-source" aria-hidden="true"></div>
+              <div class="flow-connector connector-hub" aria-hidden="true"></div>
+              <div class="flow-connector connector-report" aria-hidden="true"></div>
+              <div class="route-node node-source"><span class="node-icon"><i data-lucide="boxes"></i></span><strong>你的源码</strong><small>Forge.md</small></div>
+              <div class="route-node node-hub"><span class="node-icon blue"><i data-lucide="git-branch"></i></span><strong>计划引擎</strong><small>route / build</small></div>
+              <div class="platform-stack">
+                <div class="route-node node-linux"><span class="node-icon mint"><i data-lucide="terminal"></i></span><span><strong>Linux</strong><small>deb / rpm / AppImage</small></span></div>
+                <div class="route-node node-apple"><span class="node-icon coral"><i data-lucide="apple"></i></span><span><strong>Apple</strong><small>codesign + notarize</small></span></div>
+                <div class="route-node node-mobile"><span class="node-icon gold"><i data-lucide="smartphone"></i></span><span><strong>HarmonyOS</strong><small>AGC + hdc</small></span></div>
+              </div>
+              <div class="route-node node-report"><span class="node-icon blue"><i data-lucide="file-check-2"></i></span><strong>证据清单</strong><small>ReleaseManifest</small></div>
+            </div>
+          </div>
+          <div class="visual-footer"><span class="pulse-dot"></span><span>REAL VERIFICATION ENABLED</span><span class="mono">SHA256 / SIGNATURE / RUNTIME</span></div>
+        </div>
+      </section>
+
+      <section id="ecosystems" class="band band-light">
+        <div class="section-wrap">
+          <div class="section-heading">
+            <div><p class="eyebrow dark"><span>INDEX / 06</span> 先选生态，再谈产物</p><h2>你要把产品送到哪里？</h2></div>
+            <p>每张卡都对应一份可被 Agent 读取的知识包。筛选后可直接进入签名和验证指南。</p>
+          </div>
+          <div class="filter-row" role="toolbar" aria-label="生态筛选">
+            <button class="filter-button is-active" type="button" data-filter="all">全部 <span>06</span></button>
+            <button class="filter-button" type="button" data-filter="linux">Linux <span>03</span></button>
+            <button class="filter-button" type="button" data-filter="desktop">桌面端 <span>02</span></button>
+            <button class="filter-button" type="button" data-filter="mobile">移动端 <span>01</span></button>
+          </div>
+          <div id="ecosystem-grid" class="ecosystem-grid"></div>
+        </div>
+      </section>
+
+      <section id="credentials" class="band band-ink">
+        <div class="section-wrap credentials-layout">
+          <div class="credentials-intro">
+            <p class="eyebrow"><span>GUIDE / 02</span> 你提供身份，DeliverKit 负责链路</p>
+            <h2>签名不是黑盒，<br /><span>是用户自己的钥匙。</span></h2>
+            <p>个人用户可以提供自己的账号和签名材料，但申请条件由平台决定。DeliverKit 不代办账号、不生成假证书、不把私钥写进仓库；它只把材料安全注入正确 runner，并用官方工具验证结果。</p>
+            <div class="boundary-note"><i data-lucide="shield-check"></i><div><strong>硬边界</strong><span>所有 secret 只通过本地环境或 CI secret 注入，日志自动脱敏。</span></div></div>
+          </div>
+          <div id="guide-list" class="guide-list"></div>
+        </div>
+      </section>
+
+      <section id="evidence" class="band band-paper">
+        <div class="section-wrap evidence-layout">
+          <div class="evidence-stamp"><span>DK</span><strong>证据<br />优先</strong><small>NO EXIT CODE<br />ONLY PROOF</small></div>
+          <div>
+            <p class="eyebrow dark"><span>VERIFY / 03</span> 产物必须可安装、可运行、可追溯</p>
+            <h2>交付完成的标准，<br />不是“命令返回 0”。</h2>
+            <div class="evidence-list">
+              <div><span class="evidence-number">01</span><div><strong>安装证据</strong><p>在干净环境中安装，记录命令、日志和退出码。</p></div></div>
+              <div><span class="evidence-number">02</span><div><strong>运行证据</strong><p>启动真实入口或服务，确认产物能工作而不是只存在。</p></div></div>
+              <div><span class="evidence-number">03</span><div><strong>身份证据</strong><p>签名、公证、证书链和 SHA256 都进入统一 Release Manifest。</p></div></div>
+            </div>
+            <a class="text-link" href="https://github.com/muzimu217/DeliverKit" target="_blank" rel="noreferrer">查看仓库与实现 <i data-lucide="arrow-up-right"></i></a>
+          </div>
+        </div>
+      </section>
+
+      <section id="launch" class="band band-coral">
+        <div class="section-wrap launch-layout">
+          <div><p class="eyebrow dark"><span>LAUNCH / 01</span> 第一阶段宣发</p><h2>让更多 Agent<br />知道怎么把东西送达。</h2></div>
+          <div class="launch-copy"><p>第一阶段公开预览聚焦三件事：真实 Linux 交付矩阵、跨平台签名边界、可复用的生态知识包。留下你的邮箱，下一批教程、案例和 CI 模板上线时通知你。</p><form id="launch-form" class="launch-form"><label class="sr-only" for="email">邮箱</label><input id="email" name="email" type="email" placeholder="your@email.com" required /><button class="button button-dark" type="submit">加入发布名单 <i data-lucide="send"></i></button></form><p id="form-note" class="form-note" role="status"></p><div class="share-row"><span>转发第一阶段</span><button type="button" class="icon-button" data-copy="https://github.com/muzimu217/DeliverKit" title="复制仓库链接"><i data-lucide="link-2"></i><span class="sr-only">复制仓库链接</span></button><a class="icon-button" href="https://github.com/muzimu217/DeliverKit" target="_blank" rel="noreferrer" title="打开 GitHub"><i data-lucide="code-2"></i><span class="sr-only">打开 GitHub</span></a></div></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer"><div class="section-wrap footer-inner"><span>DELIVERKIT / ENCYCLOPEDIA</span><span class="mono">KNOWLEDGE → CONTRACT → BUILD → PROOF</span><span>MIT · 2026</span></div></footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
