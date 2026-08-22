@@ -45,7 +45,18 @@ gh release create v0.2.0 --title "v0.2.0 — 多平台打包：Windows MSI / mac
 
 ## 已由宣传矩阵代完成的项（无需用户操作）
 
-- ✅ GitHub topics 已添加（SEO / 话题页曝光）
+- ✅ GitHub topics 已添加（14 个，SEO / 话题页曝光）
 - ✅ Discussions 已开启（用户提问入口）
-- ✅ `metrics-snapshot.yml` 流量采集 workflow 已上线（每周一自动快照，含 workflow_dispatch 手动触发）
+- ✅ Release v0.1.0 已发布（标记 a268349 状态）
+- ✅ `metrics-snapshot.yml` 流量采集 workflow 已上线并验证可运行
+- ✅ 2026-08-22 真实基线已回填（`metrics/traffic-2026-08-22.json`：views 24/2 uniques，clones 22/12 uniques）
 - ✅ 全渠道文案与目录提交材料已备好（见 `copy/`、`submissions/`）
+
+## 后续动作（非阻断，但强烈建议）
+
+**配置 METRICS_TOKEN（流量采集真实化）**：GitHub Actions 的默认 GITHUB_TOKEN 没有 traffic API 权限（HTTP 403），未配置 secret 时每周快照会记 `traffic_ok: false`。创建 classic PAT（勾选 `repo` scope）后：
+
+```bash
+gh secret set METRICS_TOKEN -R muzimu217/DeliverKit    # 粘贴 PAT
+gh workflow run metrics-snapshot.yml -R muzimu217/DeliverKit  # 手动触发验证
+```

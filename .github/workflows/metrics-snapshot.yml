@@ -2,6 +2,11 @@ name: metrics-snapshot
 
 # 每周一 01:00 UTC（北京时间 09:00）快照 GitHub 流量数据。
 # GitHub Insights 只保留 14 天，快照进 metrics/ 目录才能长期留存归因。
+#
+# 注意：traffic API 不接受 Actions 默认 GITHUB_TOKEN（HTTP 403），
+# 需要配置 METRICS_TOKEN secret（classic PAT，repo scope）：
+#   gh secret set METRICS_TOKEN -R <owner>/<repo>
+# 未配置时快照会记录 traffic_ok: false（不覆盖已有真实数据）。
 on:
   schedule:
     - cron: "0 1 * * 1"
@@ -18,7 +23,7 @@ jobs:
 
       - name: Collect traffic and repo metrics
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.METRICS_TOKEN || github.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -26,10 +31,27 @@ jobs:
           OUT="metrics/traffic-${DATE}.json"
           mkdir -p metrics
 
-          gh api "repos/$REPO/traffic/views" > views.json || echo '{"count":0,"uniques":0,"views":[]}' > views.json
-          gh api "repos/$REPO/traffic/clones" > clones.json || echo '{"count":0,"uniques":0,"clones":[]}' > clones.json
-          gh api "repos/$REPO/traffic/popular/referrers" > referrers.json || echo '[]' > referrers.json
-          gh api "repos/$REPO/traffic/popular/paths" > paths.json || echo '[]' > paths.json
+          if gh api "repos/$REPO/traffic/views" > views.json 2>/dev/null; then
+            TRAFFIC_OK=true
+          else
+            TRAFFIC_OK=false
+            echo '{"count":null,"uniques":null,"views":[]}' > views.json
+            echo '::warning::traffic API 不可用（403）：请配置 METRICS_TOKEN secret（classic PAT, repo scope），见 docs/community/promotion/metrics.md'
+          fi
+          if ! gh api "repos/$REPO/traffic/clones" > clones.json 2>/dev/null; then
+            echo '{"count":null,"uniques":null,"clones":[]}' > clones.json
+          fi
+          if ! gh api "repos/$REPO/traffic/popular/referrers" > referrers.json 2>/dev/null; then
+            echo '[]' > referrers.json
+          fi
+          if ! gh api "repos/$REPO/traffic/popular/paths" > paths.json 2>/dev/null; then
+            echo '[]' > paths.json
+          fi
+
+          if [ "$TRAFFIC_OK" = false ] && [ -f "$OUT" ]; then
+            echo "::notice::$OUT 已存在且本次 traffic 不可达，跳过覆盖，保留已有真实数据。"
+            exit 0
+          fi
 
           gh api "repos/$REPO" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, open_issues: .open_issues_count}' > repo.json
 
@@ -43,8 +65,8 @@ jobs:
             --slurpfile v views.json --slurpfile c clones.json \
             --slurpfile r referrers.json --slurpfile p paths.json \
             --slurpfile ri repo.json \
-            --arg date "$DATE" --argjson npm_downloads_last_week "$NPM" \
-            '{date: $date, repo: $ri[0], npm_downloads_last_week: $npm_downloads_last_week, views: $v[0], clones: $c[0], popular_referrers: $r[0], popular_paths: $p[0]}' \
+            --arg date "$DATE" --argjson traffic_ok "$TRAFFIC_OK" --argjson npm_downloads_last_week "$NPM" \
+            '{date: $date, traffic_ok: $traffic_ok, repo: $ri[0], npm_downloads_last_week: $npm_downloads_last_week, views: $v[0], clones: $c[0], popular_referrers: $r[0], popular_paths: $p[0]}' \
             > "$OUT"
 
           rm -f views.json clones.json referrers.json paths.json repo.json npm.json

@@ -23,7 +23,9 @@
 
 ### GitHub 流量周快照
 
-`.github/workflows/metrics-snapshot.yml`：每周一 09:00（UTC）自动把 views / clones / referrers / paths / stars / forks 快照进 `metrics/` 目录提交。**GitHub Insights 只保留 14 天，快照让数据可长期留存**——这是「有没有真实用户」的原始证据链。
+`.github/workflows/metrics-snapshot.yml`：每周一 09:00（UTC+8）自动把 views / clones / referrers / paths / stars / forks 快照进 `metrics/` 目录提交。**GitHub Insights 只保留 14 天，快照让数据可长期留存**——这是「有没有真实用户」的原始证据链。
+
+⚠️ 已知限制（实测）：Actions 默认 GITHUB_TOKEN 调 traffic API 返回 403，需配置 `METRICS_TOKEN` secret（classic PAT，repo scope）后快照才含真实流量；未配置时快照记 `traffic_ok: false` 且不覆盖已有真实数据。2026-08-22 基线已用管理员 token 手动回填。
 
 ```bash
 gh workflow run metrics-snapshot.yml -R muzimu217/DeliverKit   # 手动补一次快照
