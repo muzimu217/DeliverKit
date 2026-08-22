@@ -1,0 +1,64 @@
+name: metrics-snapshot
+
+# 每周一 01:00 UTC（北京时间 09:00）快照 GitHub 流量数据。
+# GitHub Insights 只保留 14 天，快照进 metrics/ 目录才能长期留存归因。
+on:
+  schedule:
+    - cron: "0 1 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect traffic and repo metrics
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +%F)
+          OUT="metrics/traffic-${DATE}.json"
+          mkdir -p metrics
+
+          gh api "repos/$REPO/traffic/views" > views.json || echo '{"count":0,"uniques":0,"views":[]}' > views.json
+          gh api "repos/$REPO/traffic/clones" > clones.json || echo '{"count":0,"uniques":0,"clones":[]}' > clones.json
+          gh api "repos/$REPO/traffic/popular/referrers" > referrers.json || echo '[]' > referrers.json
+          gh api "repos/$REPO/traffic/popular/paths" > paths.json || echo '[]' > paths.json
+
+          gh api "repos/$REPO" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, open_issues: .open_issues_count}' > repo.json
+
+          if curl -sf "https://api.npmjs.org/downloads/point/last-week/deliverkit" > npm.json; then
+            NPM=$(jq -c '.downloads' npm.json)
+          else
+            NPM=null
+          fi
+
+          jq -n \
+            --slurpfile v views.json --slurpfile c clones.json \
+            --slurpfile r referrers.json --slurpfile p paths.json \
+            --slurpfile ri repo.json \
+            --arg date "$DATE" --argjson npm_downloads_last_week "$NPM" \
+            '{date: $date, repo: $ri[0], npm_downloads_last_week: $npm_downloads_last_week, views: $v[0], clones: $c[0], popular_referrers: $r[0], popular_paths: $p[0]}' \
+            > "$OUT"
+
+          rm -f views.json clones.json referrers.json paths.json repo.json npm.json
+          echo "::notice::Wrote $OUT"
+
+      - name: Commit snapshot if changed
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add metrics/
+          if git diff --cached --quiet; then
+            echo "No metric changes to commit."
+          else
+            git commit -m "chore(metrics): traffic snapshot $(date -u +%F)"
+            git push
+          fi
