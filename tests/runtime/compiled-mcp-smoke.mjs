@@ -51,11 +51,23 @@ try {
   });
   assert.equal(response.content.length, 1);
   assert.equal(response.content[0].type, 'text');
+  assert.notEqual(response.isError, true);
 
   const result = JSON.parse(response.content[0].text);
   assert.equal(result.status, 'success');
   assert.equal(result.language, 'Python');
   assert.ok(result.entrypoints.includes('app.py'));
+
+  // 失败必须同时体现在 MCP 协议层（isError）和结构化 body（status/code），
+  // 否则客户端要先解析 JSON 才知道出错。
+  const failureResponse = await client.callTool({
+    name: 'pack_deb',
+    arguments: { source_dir: fixtureDir },
+  });
+  assert.equal(failureResponse.isError, true);
+  const failure = JSON.parse(failureResponse.content[0].text);
+  assert.equal(failure.status, 'failed');
+  assert.equal(failure.error.code, 'plan_not_found');
 
   const knowledgeResponse = await client.callTool({
     name: 'get_ecosystem_knowledge',

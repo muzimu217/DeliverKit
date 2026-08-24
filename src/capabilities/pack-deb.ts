@@ -11,12 +11,15 @@ import * as path from 'node:path';
 import { contractIncludesArtifact, loadForgeContract, type ForgeContract } from './forge-contract.js';
 import type { ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
-import { commandExists, runCommand, runCommandWithLog, type CommandLogResult } from './utils/command.js';
+import { describeCommandFailure, logTail, runCommandWithLog, type CommandLogResult } from './utils/command.js';
+import { normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 
 const BUILD_IMAGE = 'ubuntu:22.04';
 const NODE_BUILD_IMAGE = 'node:18-bookworm';
 const VERIFY_IMAGE = 'ubuntu:22.04';
+const BUILD_TIMEOUT_MS = 10 * 60_000;
+const VERIFY_TIMEOUT_MS = 5 * 60_000;
 
 export interface PackDebRequest {
   sourceDir: string;
@@ -34,7 +37,7 @@ export type DockerRunner = (
 export function packDeb(
   request: PackDebRequest,
   runner: DockerRunner = runCommandWithLog,
-  dockerAvailable: () => boolean = isDockerAvailable
+  dockerAvailable: DockerProbeFn = probeDocker
 ): ForgeKitResult {
   try {
     assertSourceDir(request.sourceDir);
@@ -46,7 +49,10 @@ export function packDeb(
   }
 
   if (!pathExists(request.planPath)) {
-    return failure('plan_not_found', `Forge.md 交付契约文件不存在: ${request.planPath}`, '先调用 generate_packaging_plan 生成计划');
+    return {
+      ...failure('plan_not_found', `Forge.md 交付契约文件不存在: ${request.planPath}`, '先调用 generate_packaging_plan 生成计划'),
+      next_actions: ['调用 generate_packaging_plan（goals 包含 deb）生成 Forge.md，再重新执行 pack_deb'],
+    };
   }
 
   const contractResult = loadForgeContract(request.planPath, request.sourceDir);
@@ -54,21 +60,17 @@ export function packDeb(
     return failure('plan_invalid', contractResult.reason, '重新生成 Forge.md 并审查 Delivery Targets');
   }
   if (!contractIncludesArtifact(contractResult.contract, 'linux/ubuntu', 'deb')) {
-    return failure(
-      'plan_invalid',
-      'Forge.md 未声明 linux/ubuntu 的 deb 交付目标',
-      '使用 goals 包含 deb 重新生成 Forge.md 后再构建'
-    );
+    return {
+      ...failure(
+        'plan_invalid',
+        'Forge.md 未声明 linux/ubuntu 的 deb 交付目标',
+        '使用 goals 包含 deb 重新生成 Forge.md 后再构建'
+      ),
+      next_actions: ['调用 generate_packaging_plan 时在 goals 中加入 deb'],
+    };
   }
 
-  if (!dockerAvailable()) {
-    return failure(
-      'toolchain_not_available',
-      'Docker CLI 或守护进程不可用；deb 的隔离构建与验证需要可用 Docker',
-      '安装并启动 Docker，或在 Linux CI runner 上执行 pack_deb'
-    );
-  }
-
+  // 项目侧检查排在 Docker 探测之前：语言不支持时不该让用户先白等一次守护进程探测。
   const packageName = normalizePackageName(request.packageName ?? contractResult.contract.project.name);
   if (!packageName) {
     return failure('build_config_invalid', '项目名无法转换为合法 Debian 包名', '传入 package_name（小写字母、数字和连字符）');
@@ -79,6 +81,20 @@ export function packDeb(
     return failure(launch.code, launch.reason, launch.suggestedFix);
   }
 
+  const docker = normalizeDockerProbe(dockerAvailable());
+  if (!docker.available) {
+    return {
+      status: 'failed',
+      error: {
+        code: 'toolchain_not_available',
+        summary: docker.summary,
+        suggested_fix: docker.suggestedFix,
+        log_excerpt: docker.detail,
+      },
+      next_actions: docker.nextActions,
+    };
+  }
+
   const outputDir = path.resolve(request.outputDir ?? path.join(request.sourceDir, '.deliverkit', 'artifacts'));
   fs.mkdirSync(outputDir, { recursive: true });
   const architecture = launch.value.buildKind === 'go' ? debArchitecture() : 'all';
@@ -86,13 +102,26 @@ export function packDeb(
   const buildImage = launch.value.buildKind === 'node' ? NODE_BUILD_IMAGE : BUILD_IMAGE;
   const artifactPath = path.join(outputDir, artifactName);
   const logDir = path.join(outputDir, 'logs');
+  const runStamp = logStamp();
   const build = runner(
     'docker',
     dockerRunArgs(buildImage, request.sourceDir, outputDir, createDebBuildScript(packageName, artifactName, launch.value, architecture)),
-    { timeout: 10 * 60_000, logDir, logFileName: `${packageName}-deb-build.log` }
+    { timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-deb-build-${runStamp}.log` }
   );
   if (!build.success) {
-    return failure('build_failed', `deb 构建失败（退出码 ${build.exitCode}）`, '查看构建日志并修正项目依赖或打包配置', build.logPath);
+    return {
+      status: 'failed',
+      error: {
+        code: 'build_failed',
+        summary: `deb 构建失败（${describeCommandFailure(build, BUILD_TIMEOUT_MS)}）`,
+        suggested_fix: build.timedOut
+          ? '首次运行需要拉取基础镜像，网络慢时容易触顶；预先执行 docker pull ' + buildImage + ' 后重试'
+          : '按下面的日志片段修正项目依赖或打包配置后重试',
+        detail_log: build.logPath,
+        log_excerpt: logTail(build.stdout),
+      },
+      next_actions: [`完整日志见 ${build.logPath}`],
+    };
   }
   if (!fs.existsSync(artifactPath)) {
     return failure('artifact_not_found', `构建命令成功但未找到 deb 产物: ${artifactPath}`, '查看构建日志，确认 Docker 输出目录可写', build.logPath);
@@ -101,10 +130,20 @@ export function packDeb(
   const verify = runner(
     'docker',
     dockerVerifyArgs(VERIFY_IMAGE, outputDir, artifactName, packageName, launch.value.runtimePackages),
-    { timeout: 5 * 60_000, logDir, logFileName: `${packageName}-deb-verify.log` }
+    { timeout: VERIFY_TIMEOUT_MS, logDir, logFileName: `${packageName}-deb-verify-${runStamp}.log` }
   );
   if (!verify.success) {
-    return failure('verification_failed', `deb 安装或运行验证失败（退出码 ${verify.exitCode}）`, '查看验证日志，修正运行依赖或应用入口', verify.logPath);
+    return {
+      status: 'failed',
+      error: {
+        code: 'verification_failed',
+        summary: `deb 安装或运行验证失败（${describeCommandFailure(verify, VERIFY_TIMEOUT_MS)}）`,
+        suggested_fix: '产物已构建但装不上或跑不起来：按日志片段修正运行依赖（Depends）或应用入口',
+        detail_log: verify.logPath,
+        log_excerpt: logTail(verify.stdout),
+      },
+      next_actions: [`产物保留在 ${artifactPath}，完整验证日志见 ${verify.logPath}`],
+    };
   }
 
   const stat = fs.statSync(artifactPath);
@@ -134,11 +173,11 @@ export function packDeb(
       base_image: buildImage,
       build_method: 'Docker 隔离 dpkg-deb 构建 + 干净 Ubuntu 容器安装运行验证',
     },
+    next_actions: [
+      `本机试装：sudo dpkg -i ${artifactPath}`,
+      '调用 generate_release_manifest 汇总各平台产物与验证证据',
+    ],
   };
-}
-
-function isDockerAvailable(): boolean {
-  return commandExists('docker') && runCommand('docker', ['info', '--format', '{{.ServerVersion}}'], { timeout: 10_000 }).success;
 }
 
 export interface LinuxLauncher {
@@ -279,6 +318,11 @@ function readPackageJson(sourceDir: string): { scripts?: { start?: string } } | 
 
 function debArchitecture(): string {
   return process.arch === 'arm64' ? 'arm64' : process.arch === 'x64' ? 'amd64' : process.arch;
+}
+
+/** 日志文件名带时间戳，避免重跑静默覆盖上一次的失败证据。 */
+export function logStamp(date: Date = new Date()): string {
+  return date.toISOString().replace(/[:.]/g, '-').replace('Z', '');
 }
 
 function dockerRunArgs(image: string, sourceDir: string, outputDir: string, script: string): string[] {

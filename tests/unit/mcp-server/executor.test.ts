@@ -9,7 +9,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { executeTool } from '../../../src/mcp-server/tools/executor.js';
+import { executeTool, unexpectedFailure } from '../../../src/mcp-server/tools/executor.js';
 
 let tmpDir: string;
 
@@ -113,5 +113,31 @@ describe('Executor - 路由到真实能力', () => {
 
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('ecosystem_not_found');
+  });
+});
+
+describe('Executor - 未预期异常兜底', () => {
+  it('权限错误给出换目录的具体建议，而不是裸 Error', () => {
+    const error = Object.assign(new Error("EACCES: permission denied, mkdir '/x'"), { code: 'EACCES' });
+    const result = unexpectedFailure('pack_deb', error);
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('unknown_error');
+    expect(result.error?.summary).toContain('pack_deb');
+    expect(result.error?.suggested_fix).toContain('output_dir');
+  });
+
+  it('磁盘写满时提示清理空间', () => {
+    const error = Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' });
+    const result = unexpectedFailure('pack_rpm', error);
+
+    expect(result.error?.suggested_fix).toContain('磁盘空间不足');
+  });
+
+  it('其他异常引导到 issue，并带上调用栈片段', () => {
+    const result = unexpectedFailure('inspect_project', new Error('boom'));
+
+    expect(result.error?.suggested_fix).toContain('issues');
+    expect(result.error?.log_excerpt).toContain('boom');
   });
 });

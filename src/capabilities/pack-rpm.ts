@@ -3,13 +3,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { contractIncludesArtifact, loadForgeContract } from './forge-contract.js';
-import { resolveLinuxLauncher, type DockerRunner, type LinuxLauncher } from './pack-deb.js';
+import { resolveLinuxLauncher, logStamp, type DockerRunner, type LinuxLauncher } from './pack-deb.js';
 import type { ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
-import { commandExists, runCommand, runCommandWithLog } from './utils/command.js';
+import { describeCommandFailure, logTail, runCommandWithLog } from './utils/command.js';
+import { normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 
 const IMAGE = 'rockylinux:9';
+const BUILD_TIMEOUT_MS = 10 * 60_000;
+const VERIFY_TIMEOUT_MS = 5 * 60_000;
 
 export interface PackRpmRequest {
   sourceDir: string;
@@ -21,7 +24,7 @@ export interface PackRpmRequest {
 export function packRpm(
   request: PackRpmRequest,
   runner: DockerRunner = runCommandWithLog,
-  dockerAvailable: () => boolean = isDockerAvailable
+  dockerAvailable: DockerProbeFn = probeDocker
 ): ForgeKitResult {
   try {
     assertSourceDir(request.sourceDir);
@@ -32,19 +35,23 @@ export function packRpm(
     throw error;
   }
   if (!pathExists(request.planPath)) {
-    return failure('plan_not_found', `Forge.md 交付契约文件不存在: ${request.planPath}`, '先调用 generate_packaging_plan 生成计划');
+    return {
+      ...failure('plan_not_found', `Forge.md 交付契约文件不存在: ${request.planPath}`, '先调用 generate_packaging_plan 生成计划'),
+      next_actions: ['调用 generate_packaging_plan（goals 包含 rpm）生成 Forge.md，再重新执行 pack_rpm'],
+    };
   }
   const plan = loadForgeContract(request.planPath, request.sourceDir);
   if (!plan.ok) {
     return failure('plan_invalid', plan.reason, '重新生成 Forge.md 并审查 Delivery Targets');
   }
   if (!contractIncludesArtifact(plan.contract, 'linux/rpm', 'rpm')) {
-    return failure('plan_invalid', 'Forge.md 未声明 linux/rpm 的 rpm 交付目标', '使用 goals 包含 rpm 重新生成 Forge.md 后再构建');
-  }
-  if (!dockerAvailable()) {
-    return failure('toolchain_not_available', 'Docker CLI 或守护进程不可用；rpm 的隔离构建与验证需要可用 Docker', '安装并启动 Docker，或在 Linux CI runner 上执行 pack_rpm');
+    return {
+      ...failure('plan_invalid', 'Forge.md 未声明 linux/rpm 的 rpm 交付目标', '使用 goals 包含 rpm 重新生成 Forge.md 后再构建'),
+      next_actions: ['调用 generate_packaging_plan 时在 goals 中加入 rpm'],
+    };
   }
 
+  // 项目侧检查排在 Docker 探测之前：语言不支持时不该让用户先白等一次守护进程探测。
   const packageName = normalizePackageName(request.packageName ?? plan.contract.project.name);
   if (!packageName) {
     return failure('build_config_invalid', '项目名无法转换为合法 RPM 包名', '传入 package_name（小写字母、数字和连字符）');
@@ -54,16 +61,43 @@ export function packRpm(
     return failure(launcher.code, launcher.reason, launcher.suggestedFix);
   }
 
+  const docker = normalizeDockerProbe(dockerAvailable());
+  if (!docker.available) {
+    return {
+      status: 'failed',
+      error: {
+        code: 'toolchain_not_available',
+        summary: docker.summary,
+        suggested_fix: docker.suggestedFix,
+        log_excerpt: docker.detail,
+      },
+      next_actions: docker.nextActions,
+    };
+  }
+
   const outputDir = path.resolve(request.outputDir ?? path.join(request.sourceDir, '.deliverkit', 'artifacts'));
   fs.mkdirSync(outputDir, { recursive: true });
   const architecture = rpmArchitecture();
   const logDir = path.join(outputDir, 'logs');
+  const runStamp = logStamp();
   const sourceOutputPath = relativePathWithin(request.sourceDir, outputDir);
   const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createRpmBuildScript(packageName, architecture, launcher.value, sourceOutputPath)), {
-    timeout: 10 * 60_000, logDir, logFileName: `${packageName}-rpm-build.log`,
+    timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-rpm-build-${runStamp}.log`,
   });
   if (!build.success) {
-    return failure('build_failed', `rpm 构建失败（退出码 ${build.exitCode}）`, '查看构建日志并修正项目依赖或打包配置', build.logPath);
+    return {
+      status: 'failed',
+      error: {
+        code: 'build_failed',
+        summary: `rpm 构建失败（${describeCommandFailure(build, BUILD_TIMEOUT_MS)}）`,
+        suggested_fix: build.timedOut
+          ? `首次运行需要拉取 ${IMAGE} 镜像，网络慢时容易触顶；预先 docker pull ${IMAGE} 后重试`
+          : '按下面的日志片段修正项目依赖或打包配置后重试',
+        detail_log: build.logPath,
+        log_excerpt: logTail(build.stdout),
+      },
+      next_actions: [`完整日志见 ${build.logPath}`],
+    };
   }
   const artifactPath = findRpmArtifact(outputDir, packageName);
   if (!artifactPath) {
@@ -72,10 +106,20 @@ export function packRpm(
   const artifactName = path.basename(artifactPath);
 
   const verify = runner('docker', dockerVerifyArgs(outputDir, artifactName, packageName, launcher.value.runtimePackages), {
-    timeout: 5 * 60_000, logDir, logFileName: `${packageName}-rpm-verify.log`,
+    timeout: VERIFY_TIMEOUT_MS, logDir, logFileName: `${packageName}-rpm-verify-${runStamp}.log`,
   });
   if (!verify.success) {
-    return failure('verification_failed', `rpm 安装或运行验证失败（退出码 ${verify.exitCode}）`, '查看验证日志，修正运行依赖或应用入口', verify.logPath);
+    return {
+      status: 'failed',
+      error: {
+        code: 'verification_failed',
+        summary: `rpm 安装或运行验证失败（${describeCommandFailure(verify, VERIFY_TIMEOUT_MS)}）`,
+        suggested_fix: '产物已构建但装不上或跑不起来：按日志片段修正 Requires 或应用入口',
+        detail_log: verify.logPath,
+        log_excerpt: logTail(verify.stdout),
+      },
+      next_actions: [`产物保留在 ${artifactPath}，完整验证日志见 ${verify.logPath}`],
+    };
   }
 
   const stat = fs.statSync(artifactPath);
@@ -87,6 +131,10 @@ export function packRpm(
     }],
     logs: { path: build.logPath, summary: 'Rocky Linux 隔离容器中完成 rpm 构建；验证日志见产物 metadata.verification_log', full_available: true },
     decision_basis: { target_platform: 'linux/rpm', target_version: 'Rocky Linux 9', base_image: IMAGE, build_method: 'Docker 隔离 rpmbuild + 干净 Rocky Linux 容器安装运行验证' },
+    next_actions: [
+      `本机试装：sudo rpm -Uvh ${artifactPath}`,
+      '调用 generate_release_manifest 汇总各平台产物与验证证据',
+    ],
   };
 }
 
@@ -185,10 +233,6 @@ function findRpmArtifact(outputDir: string, packageName: string): string | null 
 
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
-}
-
-function isDockerAvailable(): boolean {
-  return commandExists('docker') && runCommand('docker', ['info', '--format', '{{.ServerVersion}}'], { timeout: 10_000 }).success;
 }
 
 function failure(code: ErrorCode, summary: string, suggestedFix: string, detailLog?: string): ForgeKitResult {

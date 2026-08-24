@@ -3,10 +3,8 @@
 /**
  * DeliverKit CLI
  *
- * 当前提供 inspect/plan 规划命令与 Linux/Windows/macOS/HarmonyOS 构建、编排命令：
- * - deliverkit inspect [source]      识别项目与交付目标建议
- * - deliverkit plan [source] --goals 生成 Forge.md 交付契约
- *
+ * 规划命令（inspect/plan）、构建命令（pack-*）、编排命令（generate-*）
+ * 与环境自检（doctor）。默认输出人类可读摘要，--json 输出结构化结果。
  */
 
 import { Command } from 'commander';
@@ -20,39 +18,65 @@ import { packWindowsMsi } from '../capabilities/pack-windows-msi.js';
 import { packMacos } from '../capabilities/pack-macos.js';
 import { packHarmonyos } from '../capabilities/pack-harmonyos.js';
 import { generateReleaseManifest } from '../capabilities/generate-release-manifest.js';
+import type { ForgeKitResult } from '../capabilities/types.js';
+import { emitResult } from './render.js';
+import { renderDoctorReport, runDoctor } from './doctor.js';
 
 const program = new Command();
 
-interface PlanCliOptions {
+interface JsonOption {
+  json?: boolean;
+}
+
+interface PlanCliOptions extends JsonOption {
   goals?: string;
   env?: string;
 }
 
-interface PackDebCliOptions {
+interface PackCliOptions extends JsonOption {
   output?: string;
   name?: string;
 }
 
-interface GenerateCiCliOptions {
+interface GenerateCiCliOptions extends JsonOption {
   output?: string;
   overwrite?: boolean;
+}
+
+/** 所有命令共用的收尾：渲染结果并按 status 设置退出码。 */
+function finish(result: ForgeKitResult, options: JsonOption): void {
+  emitResult(result, { json: options.json });
+  if (result.status !== 'success') {
+    process.exitCode = 1;
+  }
 }
 
 program
   .name('deliverkit')
   .description('AI 交付大脑：规划一个产品到各生态的合法交付链路')
-  .version('0.1.0');
+  .version('0.2.0')
+  .option('--json', '输出结构化 JSON（供脚本与 Agent 使用）');
+
+program
+  .command('doctor')
+  .description('自检本机现在能交付哪些目标，缺什么、怎么补')
+  .option('--json', '输出结构化 JSON')
+  .action((options: JsonOption) => {
+    const report = runDoctor();
+    if (options.json ?? program.opts().json) {
+      process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+      return;
+    }
+    process.stdout.write(`${renderDoctorReport(report)}\n`);
+  });
 
 program
   .command('inspect')
   .description('识别项目语言、入口与已有打包配置，给出跨生态交付目标建议')
   .argument('[source]', 'project directory', '.')
-  .action(async (source: string) => {
-    const result = await inspectProject(source);
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {
-      process.exitCode = 1;
-    }
+  .option('--json', '输出结构化 JSON')
+  .action(async (source: string, options: JsonOption) => {
+    finish(await inspectProject(source), options);
   });
 
 program
@@ -61,6 +85,7 @@ program
   .argument('[source]', 'project directory', '.')
   .requiredOption('--goals <list>', '目标产物列表，逗号分隔，例如 deb,rpm 或 windows-msi')
   .option('--env <environment>', '目标环境，例如 ubuntu-22.04、windows、macos、harmonyos')
+  .option('--json', '输出结构化 JSON')
   .action(async (source: string, options: PlanCliOptions) => {
     const goals = (options.goals ?? '')
       .split(',')
@@ -69,11 +94,7 @@ program
     if (goals.length === 0) {
       program.error('--goals 不能为空');
     }
-    const result = await generatePackagingPlan(source, goals, options.env);
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {
-      process.exitCode = 1;
-    }
+    finish(await generatePackagingPlan(source, goals, options.env), options);
   });
 
 program
@@ -83,17 +104,14 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'Debian 包名，默认使用项目名')
-  .action((source: string, options: PackDebCliOptions & { plan: string }) => {
-    const result = packDeb({
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: PackCliOptions & { plan: string }) => {
+    finish(packDeb({
       sourceDir: source,
       planPath: options.plan,
       outputDir: options.output,
       packageName: options.name,
-    });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {
-      process.exitCode = 1;
-    }
+    }), options);
   });
 
 program
@@ -103,17 +121,14 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'RPM 包名，默认使用项目名')
-  .action((source: string, options: PackDebCliOptions & { plan: string }) => {
-    const result = packRpm({
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: PackCliOptions & { plan: string }) => {
+    finish(packRpm({
       sourceDir: source,
       planPath: options.plan,
       outputDir: options.output,
       packageName: options.name,
-    });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {
-      process.exitCode = 1;
-    }
+    }), options);
   });
 
 program
@@ -123,23 +138,21 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'AppImage 名称，默认使用项目名')
-  .action((source: string, options: PackDebCliOptions & { plan: string }) => {
-    const result = packAppImage({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {process.exitCode = 1;}
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: PackCliOptions & { plan: string }) => {
+    finish(packAppImage({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name }), options);
   });
 
 program
   .command('generate-ci-workflow')
-  .description('按 Forge.md 生成 GitHub Actions Linux/Windows 多平台交付工作流')
+  .description('按 Forge.md 生成 GitHub Actions 多平台交付工作流')
   .argument('[source]', 'project directory', '.')
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '工作流输出路径，默认 <source>/.github/workflows/deliverkit.yml')
   .option('--overwrite', '允许覆盖已存在的工作流')
+  .option('--json', '输出结构化 JSON')
   .action((source: string, options: GenerateCiCliOptions & { plan: string }) => {
-    const result = generateCiWorkflow({ sourceDir: source, planPath: options.plan, outputPath: options.output, overwrite: options.overwrite });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {process.exitCode = 1;}
+    finish(generateCiWorkflow({ sourceDir: source, planPath: options.plan, outputPath: options.output, overwrite: options.overwrite }), options);
   });
 
 program
@@ -149,10 +162,9 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'MSI 名称，默认使用项目名')
-  .action((source: string, options: PackDebCliOptions & { plan: string }) => {
-    const result = packWindowsMsi({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {process.exitCode = 1;}
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: PackCliOptions & { plan: string }) => {
+    finish(packWindowsMsi({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name }), options);
   });
 
 program
@@ -163,10 +175,9 @@ program
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'DMG/PKG 名称，默认使用项目名')
   .option('--artifact <type>', '产物类型：dmg 或 pkg；缺省按 Forge.md 选择')
-  .action((source: string, options: PackDebCliOptions & { plan: string; artifact?: 'dmg' | 'pkg' }) => {
-    const result = packMacos({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name, artifact: options.artifact });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {process.exitCode = 1;}
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: PackCliOptions & { plan: string; artifact?: 'dmg' | 'pkg' }) => {
+    finish(packMacos({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name, artifact: options.artifact }), options);
   });
 
 program
@@ -176,10 +187,9 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--artifact <type>', '产物类型：hap 或 app；缺省按 Forge.md 选择')
-  .action((source: string, options: PackDebCliOptions & { plan: string; artifact?: 'hap' | 'app' }) => {
-    const result = packHarmonyos({ sourceDir: source, planPath: options.plan, outputDir: options.output, artifact: options.artifact });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {process.exitCode = 1;}
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: PackCliOptions & { plan: string; artifact?: 'hap' | 'app' }) => {
+    finish(packHarmonyos({ sourceDir: source, planPath: options.plan, outputDir: options.output, artifact: options.artifact }), options);
   });
 
 program
@@ -189,10 +199,9 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--results <path>', '平台结果 JSON 目录，默认 <source>/.deliverkit/results')
   .option('--output <path>', '报告输出路径，默认 <source>/ReleaseManifest.json')
-  .action((source: string, options: { plan: string; results?: string; output?: string }) => {
-    const result = generateReleaseManifest({ sourceDir: source, planPath: options.plan, resultsDir: options.results, outputPath: options.output });
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    if (result.status !== 'success') {process.exitCode = 1;}
+  .option('--json', '输出结构化 JSON')
+  .action((source: string, options: JsonOption & { plan: string; results?: string; output?: string }) => {
+    finish(generateReleaseManifest({ sourceDir: source, planPath: options.plan, resultsDir: options.results, outputPath: options.output }), options);
   });
 
 program.parseAsync(process.argv).catch((error) => {

@@ -11,7 +11,7 @@
 
 import * as fs from 'fs';
 import { isBuildTool, isToolName } from './registry.js';
-import { ToolInputSchemas } from './schemas.js';
+import { ToolInputSchemas, type ToolName } from './schemas.js';
 import type { ForgeKitResult } from '../../capabilities/types.js';
 
 import { inspectProject } from '../../capabilities/inspect-project.js';
@@ -65,6 +65,19 @@ export async function executeTool(
   }
 
   // ========== Step 2: 路由到具体工具 ==========
+  // 未预期的异常（权限、磁盘、依赖 bug）也必须落回统一错误结构，
+  // 否则 Agent 只会收到一句 InternalError，code / suggested_fix 全部丢失。
+  try {
+    return await dispatch(name, input);
+  } catch (error) {
+    return unexpectedFailure(name, error);
+  }
+}
+
+function dispatch(
+  name: ToolName,
+  input: Record<string, unknown>
+): ForgeKitResult | Promise<ForgeKitResult> {
   switch (name) {
     case 'inspect_project':
       return inspectProject(input.source_dir as string);
@@ -154,6 +167,30 @@ function invalidInput(issues: string[]): ForgeKitResult {
       code: 'invalid_input',
       summary: `工具输入无效: ${issues.join('; ')}`,
       suggested_fix: '根据工具定义补齐必填字段并修正字段类型',
+    },
+  };
+}
+
+/**
+ * 未预期异常的统一出口。文件系统权限、磁盘写满这类失败常见于首次使用，
+ * 用户需要的是「哪一步失败了、怎么办」，而不是一条裸的 Error message。
+ */
+export function unexpectedFailure(name: string, error: unknown): ForgeKitResult {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: unknown } | null)?.code;
+  const permissionDenied = code === 'EACCES' || code === 'EPERM';
+  const diskFull = code === 'ENOSPC';
+  return {
+    status: 'failed',
+    error: {
+      code: 'unknown_error',
+      summary: `${name} 执行中出现未预期错误: ${message}`,
+      suggested_fix: permissionDenied
+        ? '当前进程对该路径没有写权限：换一个可写的 output_dir，或修正目录属主'
+        : diskFull
+          ? '磁盘空间不足：清理空间或指定其他分区上的 output_dir 后重试'
+          : '这属于未预期错误，请附带此摘要在 GitHub issue 中反馈：https://github.com/muzimu217/DeliverKit/issues',
+      log_excerpt: error instanceof Error && error.stack ? error.stack.split('\n').slice(0, 5).join('\n') : undefined,
     },
   };
 }

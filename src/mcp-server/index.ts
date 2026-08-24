@@ -63,8 +63,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // Execute tool (with plan_path enforcement in executor)
     const result = await executeTool(name, args || {});
 
-    // Return structured result as JSON (Agent 可解析)
+    // Return structured result as JSON (Agent 可解析)。
+    // isError 让客户端无需解析 JSON body 就能识别失败，
+    // 结构化的 status/code/suggested_fix 仍在 text 里保留。
     return {
+      isError: result.status === 'failed',
       content: [
         {
           type: 'text',

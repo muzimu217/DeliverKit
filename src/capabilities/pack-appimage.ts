@@ -3,14 +3,17 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { contractIncludesArtifact, loadForgeContract } from './forge-contract.js';
-import { resolveLinuxLauncher, type DockerRunner, type LinuxLauncher } from './pack-deb.js';
+import { resolveLinuxLauncher, logStamp, type DockerRunner, type LinuxLauncher } from './pack-deb.js';
 import type { ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
-import { commandExists, runCommand, runCommandWithLog } from './utils/command.js';
+import { describeCommandFailure, logTail, runCommandWithLog } from './utils/command.js';
+import { amd64EmulationWarning, normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 
 const BUILD_IMAGE = 'appimagecrafters/appimage-builder:latest';
 const VERIFY_IMAGE = 'ubuntu:22.04';
+const BUILD_TIMEOUT_MS = 15 * 60_000;
+const VERIFY_TIMEOUT_MS = 5 * 60_000;
 
 export interface PackAppImageRequest {
   sourceDir: string;
@@ -22,7 +25,7 @@ export interface PackAppImageRequest {
 export function packAppImage(
   request: PackAppImageRequest,
   runner: DockerRunner = runCommandWithLog,
-  dockerAvailable: () => boolean = isDockerAvailable
+  dockerAvailable: DockerProbeFn = probeDocker
 ): ForgeKitResult {
   try {
     assertSourceDir(request.sourceDir);
@@ -30,38 +33,86 @@ export function packAppImage(
     if (error instanceof PathValidationError) {return failure(error.code, error.message, '提供包含项目源码的有效目录');}
     throw error;
   }
-  if (!pathExists(request.planPath)) {return failure('plan_not_found', `Forge.md 交付契约文件不存在: ${request.planPath}`, '先调用 generate_packaging_plan 生成计划');}
+  if (!pathExists(request.planPath)) {
+    return {
+      ...failure('plan_not_found', `Forge.md 交付契约文件不存在: ${request.planPath}`, '先调用 generate_packaging_plan 生成计划'),
+      next_actions: ['调用 generate_packaging_plan（goals 包含 appimage）生成 Forge.md，再重新执行 pack_appimage'],
+    };
+  }
   const plan = loadForgeContract(request.planPath, request.sourceDir);
   if (!plan.ok) {return failure('plan_invalid', plan.reason, '重新生成 Forge.md 并审查 Delivery Targets');}
   if (!contractIncludesArtifact(plan.contract, 'linux/appimage', 'appimage')) {
-    return failure('plan_invalid', 'Forge.md 未声明 linux/appimage 的 appimage 交付目标', '使用 goals 包含 appimage 重新生成 Forge.md 后再构建');
+    return {
+      ...failure('plan_invalid', 'Forge.md 未声明 linux/appimage 的 appimage 交付目标', '使用 goals 包含 appimage 重新生成 Forge.md 后再构建'),
+      next_actions: ['调用 generate_packaging_plan 时在 goals 中加入 appimage'],
+    };
   }
-  if (!dockerAvailable()) {
-    return failure('toolchain_not_available', 'Docker CLI 或守护进程不可用；AppImage 的隔离构建与验证需要可用 Docker', '安装并启动 Docker，或在 Linux CI runner 上执行 pack_appimage');
-  }
+
+  // 项目侧检查排在 Docker 探测之前：语言不支持时不该让用户先白等一次守护进程探测。
   const packageName = normalizePackageName(request.packageName ?? plan.contract.project.name);
   if (!packageName) {return failure('build_config_invalid', '项目名无法转换为合法 AppImage 名称', '传入 package_name（小写字母、数字和连字符）');}
   const launcher = resolveLinuxLauncher(plan.contract, packageName, request.sourceDir);
   if (!launcher.ok) {return failure(launcher.code, launcher.reason, launcher.suggestedFix);}
+
+  const docker = normalizeDockerProbe(dockerAvailable());
+  if (!docker.available) {
+    return {
+      status: 'failed',
+      error: {
+        code: 'toolchain_not_available',
+        summary: docker.summary,
+        suggested_fix: docker.suggestedFix,
+        log_excerpt: docker.detail,
+      },
+      next_actions: docker.nextActions,
+    };
+  }
+  // AppImage 只产出 x86_64；arm64 主机靠模拟运行，先说清楚，别让它在容器深处炸。
+  const archWarning = amd64EmulationWarning();
 
   const outputDir = path.resolve(request.outputDir ?? path.join(request.sourceDir, '.deliverkit', 'artifacts'));
   fs.mkdirSync(outputDir, { recursive: true });
   const artifactName = `${packageName}-0.1.0-x86_64.AppImage`;
   const artifactPath = path.join(outputDir, artifactName);
   const logDir = path.join(outputDir, 'logs');
+  const runStamp = logStamp();
   const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createAppImageBuilderScript(packageName, artifactName, launcher.value, plan.contract.project.entrypoints[0])), {
-    timeout: 15 * 60_000, logDir, logFileName: `${packageName}-appimage-build.log`,
+    timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-appimage-build-${runStamp}.log`,
   });
   if (!build.success) {
-    return failure('build_failed', `AppImage 构建失败（退出码 ${build.exitCode}）`, '查看构建日志并修正项目依赖或打包配置', build.logPath);
+    return {
+      status: 'failed',
+      error: {
+        code: 'build_failed',
+        summary: `AppImage 构建失败（${describeCommandFailure(build, BUILD_TIMEOUT_MS)}）`,
+        suggested_fix: build.timedOut
+          ? `首次运行需要拉取 ${BUILD_IMAGE}（体积较大），网络慢时容易触顶；预先 docker pull 后重试`
+          : '按下面的日志片段修正项目依赖或 AppImage recipe 后重试',
+        detail_log: build.logPath,
+        log_excerpt: logTail(build.stdout),
+      },
+      warnings: archWarning ? [archWarning] : undefined,
+      next_actions: [`完整日志见 ${build.logPath}`],
+    };
   }
   if (!fs.existsSync(artifactPath)) {
     return failure('artifact_not_found', `构建命令成功但未找到 AppImage 产物: ${artifactPath}`, '查看构建日志，确认 Docker 输出目录可写', build.logPath);
   }
 
-  const verify = runner('docker', dockerVerifyArgs(outputDir, artifactName), { timeout: 5 * 60_000, logDir, logFileName: `${packageName}-appimage-verify.log` });
+  const verify = runner('docker', dockerVerifyArgs(outputDir, artifactName), { timeout: VERIFY_TIMEOUT_MS, logDir, logFileName: `${packageName}-appimage-verify-${runStamp}.log` });
   if (!verify.success) {
-    return failure('verification_failed', `AppImage 运行验证失败（退出码 ${verify.exitCode}）`, '查看验证日志，修正 AppRun 或应用入口', verify.logPath);
+    return {
+      status: 'failed',
+      error: {
+        code: 'verification_failed',
+        summary: `AppImage 运行验证失败（${describeCommandFailure(verify, VERIFY_TIMEOUT_MS)}）`,
+        suggested_fix: '产物已构建但跑不起来：按日志片段修正 AppRun 或应用入口',
+        detail_log: verify.logPath,
+        log_excerpt: logTail(verify.stdout),
+      },
+      warnings: archWarning ? [archWarning] : undefined,
+      next_actions: [`产物保留在 ${artifactPath}，完整验证日志见 ${verify.logPath}`],
+    };
   }
 
   const stat = fs.statSync(artifactPath);
@@ -70,6 +121,11 @@ export function packAppImage(
     artifacts: [{ type: 'appimage', path: artifactPath, checksum: sha256File(artifactPath), size_bytes: stat.size, metadata: { package_name: packageName, architecture: 'x86_64', build_image: BUILD_IMAGE, verification_image: VERIFY_IMAGE, verification_log: verify.logPath, verified_checks: ['AppImage extract-and-run or extracted AppRun fallback', 'AppRun launcher runtime'] } }],
     logs: { path: build.logPath, summary: 'Ubuntu x86_64 容器中完成 AppImage 构建；验证日志见产物 metadata.verification_log', full_available: true },
     decision_basis: { target_platform: 'linux/appimage', target_version: 'Ubuntu 20.04 / x86_64', base_image: BUILD_IMAGE, build_method: 'appimage-builder recipe + 干净 Ubuntu 容器 extract-and-run 验证' },
+    warnings: archWarning ? [archWarning] : undefined,
+    next_actions: [
+      `本机试跑（需 x86_64 或模拟）：chmod +x ${artifactPath} && ${artifactPath}`,
+      '调用 generate_release_manifest 汇总各平台产物与验证证据',
+    ],
   };
 }
 
@@ -184,5 +240,4 @@ function normalizePackageName(value: string): string | null {
   return normalized.length >= 2 && /^[a-z0-9][a-z0-9-]+$/.test(normalized) ? normalized : null;
 }
 
-function isDockerAvailable(): boolean { return commandExists('docker') && runCommand('docker', ['info', '--format', '{{.ServerVersion}}'], { timeout: 10_000 }).success; }
 function failure(code: ErrorCode, summary: string, suggestedFix: string, detailLog?: string): ForgeKitResult { return { status: 'failed', error: { code, summary, suggested_fix: suggestedFix, detail_log: detailLog } }; }

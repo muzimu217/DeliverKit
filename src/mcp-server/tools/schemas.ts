@@ -71,6 +71,7 @@ const DeliverKitErrorSchema = z.object({
   ]).describe('错误代码'),
   summary: z.string().describe('错误摘要'),
   detail_log: z.string().optional().describe('详细日志路径'),
+  log_excerpt: z.string().optional().describe('失败日志尾部片段（无需打开日志文件即可定位原因）'),
   suggested_fix: z.string().optional().describe('修复建议'),
   plan_correction: z.string().optional().describe('计划修正建议'),
 });

@@ -62,6 +62,11 @@ export interface ForgeKitError {
   code: ErrorCode;
   summary: string;
   detail_log?: string;
+  /**
+   * 失败日志尾部片段。只给日志路径等于把排错成本转给用户：
+   * Agent 读不到原因，人要去翻文件，因此失败时必须把原因带回来。
+   */
+  log_excerpt?: string;
   suggested_fix?: string;
   plan_correction?: string;
 }

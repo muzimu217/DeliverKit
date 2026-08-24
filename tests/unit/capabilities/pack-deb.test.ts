@@ -86,6 +86,149 @@ describe('pack_deb', () => {
     expect(result.error?.code).toBe('toolchain_not_available');
   });
 
+  it('把 Docker 不可用的具体原因与修复动作透出来', async () => {
+    const project = await makeProject();
+    const result = packDeb(
+      { sourceDir: project.sourceDir, planPath: project.planPath },
+      () => { throw new Error('builder must not run'); },
+      () => ({
+        available: false,
+        reason: 'permission_denied',
+        summary: '当前用户无权访问 Docker 守护进程 socket',
+        suggestedFix: '把当前用户加入 docker 组',
+        nextActions: ['usermod -aG docker "$USER" 后重新登录'],
+        detail: 'permission denied while trying to connect',
+      })
+    );
+
+    expect(result.error?.code).toBe('toolchain_not_available');
+    expect(result.error?.summary).toContain('无权访问');
+    expect(result.error?.suggested_fix).toContain('docker 组');
+    expect(result.error?.log_excerpt).toContain('permission denied');
+    expect(result.next_actions?.[0]).toContain('usermod');
+  });
+
+  it('语言不支持时先返回，不去探测 Docker', async () => {
+    const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-deb-rust-'));
+    tempDirs.push(sourceDir);
+    fs.writeFileSync(path.join(sourceDir, 'Cargo.toml'), '[package]\nname = "demo"\nversion = "0.1.0"\n');
+    fs.mkdirSync(path.join(sourceDir, 'src'));
+    fs.writeFileSync(path.join(sourceDir, 'src', 'main.rs'), 'fn main() {}\n');
+    const plan = await generatePackagingPlan(sourceDir, ['deb']);
+
+    const result = packDeb(
+      { sourceDir, planPath: plan.plan_path! },
+      () => { throw new Error('builder must not run'); },
+      () => { throw new Error('docker probe must not run before project checks'); }
+    );
+
+    expect(result.status).toBe('failed');
+    expect(['language_not_supported', 'build_config_invalid', 'entrypoint_not_found']).toContain(result.error?.code);
+  });
+
+  it('构建失败时把日志尾部片段带回结果，而不是只给一个路径', async () => {
+    const project = await makeProject();
+    const runner: DockerRunner = (_command, _args, options) => ({
+      success: false,
+      exitCode: 100,
+      stdout: 'Step 3/5\nE: Unable to locate package python3-venv\nThe command returned a non-zero code: 100',
+      stderr: '',
+      timedOut: false,
+      signal: null,
+      errorCode: null,
+      logPath: path.join(project.outputDir, 'logs', options.logFileName ?? 'build.log'),
+    });
+
+    const result = packDeb(
+      { sourceDir: project.sourceDir, planPath: project.planPath, outputDir: project.outputDir },
+      runner,
+      () => true
+    );
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('build_failed');
+    expect(result.error?.summary).toContain('退出码 100');
+    expect(result.error?.log_excerpt).toContain('Unable to locate package python3-venv');
+    expect(result.error?.detail_log).toBeDefined();
+  });
+
+  it('超时不被伪装成普通构建失败，并提示预拉镜像', async () => {
+    const project = await makeProject();
+    const runner: DockerRunner = (_command, _args, options) => ({
+      success: false,
+      exitCode: 1,
+      stdout: 'Pulling from library/ubuntu',
+      stderr: '',
+      timedOut: true,
+      signal: 'SIGTERM',
+      errorCode: 'ETIMEDOUT',
+      logPath: path.join(project.outputDir, 'logs', options.logFileName ?? 'build.log'),
+    });
+
+    const result = packDeb(
+      { sourceDir: project.sourceDir, planPath: project.planPath, outputDir: project.outputDir },
+      runner,
+      () => true
+    );
+
+    expect(result.error?.summary).toContain('超时');
+    expect(result.error?.suggested_fix).toContain('docker pull');
+  });
+
+  it('日志文件名带时间戳，重跑不覆盖上一次失败证据', async () => {
+    const project = await makeProject();
+    const logNames: string[] = [];
+    const runner: DockerRunner = (_command, _args, options) => {
+      logNames.push(options.logFileName ?? '');
+      return {
+        success: false,
+        exitCode: 1,
+        stdout: 'failure',
+        stderr: '',
+        timedOut: false,
+        signal: null,
+        errorCode: null,
+        logPath: path.join(project.outputDir, 'logs', options.logFileName ?? 'build.log'),
+      };
+    };
+
+    packDeb({ sourceDir: project.sourceDir, planPath: project.planPath, outputDir: project.outputDir }, runner, () => true);
+
+    expect(logNames[0]).toMatch(/-deb-build-\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it('成功后给出可执行的下一步', async () => {
+    const project = await makeProject();
+    const runner: DockerRunner = (_command, args, options) => {
+      const script = args.at(-1) ?? '';
+      const artifactName = script.match(/\/output\/([^\s]+\.deb)/)?.[1];
+      if (artifactName) {
+        fs.mkdirSync(project.outputDir, { recursive: true });
+        fs.writeFileSync(path.join(project.outputDir, artifactName), 'package');
+      }
+      return {
+        success: true,
+        exitCode: 0,
+        stdout: '',
+        stderr: '',
+        timedOut: false,
+        signal: null,
+        errorCode: null,
+        logPath: path.join(project.outputDir, 'logs', options.logFileName ?? 'build.log'),
+      };
+    };
+
+    const result = packDeb(
+      { sourceDir: project.sourceDir, planPath: project.planPath, outputDir: project.outputDir },
+      runner,
+      () => true
+    );
+
+    expect(result.status).toBe('success');
+    expect(result.next_actions?.some((action) => action.includes('dpkg -i'))).toBe(true);
+    expect(result.next_actions?.some((action) => action.includes('generate_release_manifest'))).toBe(true);
+  });
+
   it('supports Go projects with an architecture-specific binary package', async () => {
     const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-deb-go-'));
     tempDirs.push(sourceDir);
