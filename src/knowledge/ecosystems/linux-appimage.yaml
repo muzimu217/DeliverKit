@@ -1,0 +1,52 @@
+schema_version: 1
+id: "linux/appimage"
+ecosystem: "linux"
+name: "Linux AppImage"
+status: "experimental"
+updated_at: "2026-08-15"
+summary: "将应用与运行时封装为单一 AppImage 文件，面向无需系统级安装的 Linux 分发。"
+
+artifacts:
+  - id: "appimage"
+    extension: ".AppImage"
+    store_ready: false
+    note: "便携式单文件 Linux 应用"
+
+toolchain:
+  build_os: "linux"
+  cross_buildable: true
+  required: ["docker", "appimage-builder", "Ubuntu x86_64 runtime"]
+  install_hint: "在 Linux CI 或启用 Docker 的主机上运行 pack_appimage"
+
+signing:
+  required: false
+  type: "none"
+  issuer: null
+  how_to_get: "本地分发无需签名；发布渠道可额外提供 SHA256 与签名"
+  secret_ref: null
+  risks: []
+
+distribution:
+  store: null
+  requirements: ["AppRun 可执行", "运行时依赖包含在 AppDir", "在干净容器中运行验证"]
+
+verification:
+  install: "chmod +x <package>.AppImage"
+  run: "<package>.AppImage --appimage-extract-and-run"
+  checks: ["SHA256 校验和", "AppRun 启动验证"]
+
+known_issues:
+  - id: "glibc-baseline"
+    severity: "high"
+    symptom: "目标系统上无法启动 AppImage"
+    cause: "构建环境 glibc 高于目标系统"
+    fix: ["使用最低支持发行版镜像构建", "在目标基线容器验证"]
+
+compatibility:
+  - target: "Ubuntu 20.04 / x86_64"
+    remark: "当前构建与验证基线"
+
+decision_rules:
+  artifact_selection:
+    - condition: "用户不希望安装系统包"
+      recommendation: "选择 AppImage"

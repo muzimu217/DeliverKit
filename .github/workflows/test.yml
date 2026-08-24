@@ -21,3 +21,28 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+
+  linux-matrix:
+    name: Linux packaging matrix
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: npm
+      - run: npm ci
+      - run: npm run build:clean
+      - name: Build and verify Linux packages
+        run: |
+          mkdir -p .deliverkit .deliverkit/linux-matrix-manifests
+          DELIVERKIT_E2E_EVIDENCE_DIR=.deliverkit/linux-matrix-manifests node tests/e2e/linux-matrix.mjs | tee .deliverkit/linux-matrix-result.json
+      - name: Upload Linux matrix evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deliverkit-linux-matrix-evidence
+          path: |
+            .deliverkit/linux-matrix-result.json
+            .deliverkit/linux-matrix-manifests/*.json
+          if-no-files-found: error

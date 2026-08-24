@@ -12,7 +12,7 @@ mcp-server/index.ts
   -> mcp-server/tools/executor.ts     validation and capability routing
   -> capabilities/*.ts                product behavior
   -> capabilities/utils/*.ts          shared runtime helpers
-systems/adapter-loader.ts             typed loader for supported platform rules
+knowledge/ecosystem-loader.ts         typed loader for active ecosystem knowledge packs
 ```
 
 Packaging-plan ownership is split by responsibility:
@@ -22,23 +22,35 @@ Packaging-plan ownership is split by responsibility:
 - `forge-renderer.ts`: Forge.md template loading and rendering.
 - `plan-writer.ts`: generated-file overwrite and user-managed append policy.
 
-The seven registered tools are `inspect_project`, `preflight_check`,
-`diagnose_build_failure`, `generate_packaging_plan`, `build_docker_image`, and
-`pack_deb`, plus the in-development `pack_harmonyos_app` adapter.
+The registered tools are `inspect_project`, `generate_packaging_plan`,
+`get_ecosystem_knowledge`, `pack_deb`, `pack_rpm`, `pack_appimage`,
+`generate_ci_workflow`, `pack_windows_msi`, `pack_macos`, `pack_harmonyos`, and
+`generate_release_manifest`. Each build or orchestration tool
+requires a machine-readable Forge contract and records reviewable output or
+verification logs.
 
 ## Runtime data
 
-`systems/adapter-loader.ts` is the single loading boundary. It currently loads
-Ubuntu server rules and the in-development HarmonyOS rules when
-`generate_packaging_plan` creates `Forge.md`.
+`knowledge/ecosystem-loader.ts` is the active loading boundary for planning and
+build target selection. It loads the registered ecosystem knowledge packs when
+`generate_packaging_plan` creates `Forge.md`; build and orchestration capabilities
+validate the embedded contract before invoking Docker or a platform runner.
+The embedded `source_dir` is relative to `Forge.md`, so a reviewed plan can be
+committed and reused after a CI checkout moves the repository to another path.
+
+The Windows path is intentionally runner-bound: `pack_windows_msi` returns an
+explicit toolchain error on macOS/Linux, while `generate_ci_workflow` emits the
+reviewable `windows-latest` job and secret names needed to execute it legally.
+The macOS path supports both notarized DMG and PKG artifacts; PKG additionally
+requires a Developer ID Installer identity.
 
 ## Reference assets
 
-- `systems/`: platform rules, compatibility notes, and packaging templates.
-  Ubuntu and the in-development HarmonyOS rules are runtime-connected today. See
-  [systems/README.md](./systems/README.md).
-- `knowledge/`: curated YAML reference material. No runtime loader currently
-  consumes these files. See [knowledge/README.md](./knowledge/README.md).
+- `systems/`: legacy platform rules, compatibility notes, and packaging
+  templates. They remain reference material until a build capability explicitly
+  consumes them. See [systems/README.md](./systems/README.md).
+- `knowledge/`: active structured ecosystem knowledge packs and their runtime
+  loader. See [knowledge/README.md](./knowledge/README.md).
 - `packaging/`: the human-readable Forge plan template.
 
 Evaluation corpora and quality tooling belong under `tests/` and `scripts/`,

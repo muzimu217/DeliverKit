@@ -36,6 +36,10 @@ signing:
   type: "agc"
   issuer: "AppGallery Connect（华为开发者账号）"
   how_to_get: "实名认证 → 本地生成 CSR → AGC 签发正式 .cer → 创建发布 Profile(.p7b)"
+  provider_url: "https://developer.huawei.com/consumer/en/agconnect"
+  account_requirements: ["华为开发者账号", "开发者实名认证", "已创建的 AGC 应用与 bundleName"]
+  material_checklist: ["自有 release .p12 与密码", "AGC 签发的 .cer", "发布 Profile .p7b", "隐私政策与权限说明"]
+  setup_steps: ["注册并完成华为开发者实名认证", "在 DevEco 本地生成 CSR 和 release 密钥", "在 AGC 申请 .cer 并创建发布 Profile", "将证书、Profile 和密码只注入 DevEco/CI secret", "使用 assembleApp 构建并通过 hdc 真机或云手机验证", "提交 AppGallery 前完成预审与 SHA256 归档"]
   secret_ref: "secret://AGC_CERT_P12, AGC_RELEASE_PROFILE_P7B"
   risks:
     - "release .p12 丢失将导致已上架应用无法更新，务必离线备份"

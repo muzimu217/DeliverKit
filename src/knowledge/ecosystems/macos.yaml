@@ -1,0 +1,60 @@
+schema_version: 1
+id: "desktop/macos"
+ecosystem: "apple"
+name: "macOS DMG / PKG"
+status: "experimental"
+updated_at: "2026-08-16"
+summary: "在 macOS runner 使用 codesign、hdiutil/productbuild/productsign 与 notarytool 生成并公证 DMG 或 PKG。"
+
+artifacts:
+  - id: "dmg"
+    extension: ".dmg"
+    store_ready: false
+    note: "macOS 桌面分发磁盘映像"
+  - id: "pkg"
+    extension: ".pkg"
+    store_ready: false
+    note: "macOS Installer Package；使用 Developer ID Installer identity 签名"
+
+toolchain:
+  build_os: "macos"
+  cross_buildable: false
+  required: ["macos runner", "Xcode Command Line Tools", "codesign", "hdiutil", "productbuild", "productsign", "xcrun notarytool", "spctl"]
+  install_hint: "使用 macos-14 runner，并通过 secrets 注入 Apple 证书、Developer ID identities、Team ID 与 notarytool 凭据"
+
+signing:
+  required: true
+  type: "apple"
+  issuer: "Apple Developer Program"
+  how_to_get: "加入 Apple Developer Program，导出 Developer ID Application P12，并创建 App Store Connect API/Apple ID 公证凭据"
+  provider_url: "https://developer.apple.com/programs/"
+  account_requirements: ["Apple ID", "Apple Developer Program 会员", "个人或组织身份验证", "macOS + Xcode Command Line Tools"]
+  material_checklist: ["Developer ID Application P12", "P12 密码", "Team ID", "notarytool 凭据", "PKG 场景额外需要 Developer ID Installer identity"]
+  setup_steps: ["加入 Apple Developer Program", "在 Certificates, Identifiers & Profiles 创建 Developer ID 证书", "导出 P12 并离线备份", "在 App Store Connect 或 Apple ID 生成公证凭据", "把材料写入 CI secrets，由 macOS runner 导入临时 keychain", "构建后运行 codesign、spctl、notarytool 与 stapler 验证"]
+  secret_ref: "secret://DELIVERKIT_APPLE_CERTIFICATE_BASE64, DELIVERKIT_APPLE_INSTALLER_IDENTITY"
+  risks: ["P12 私钥与公证密码不得写入仓库", "未公证的 DMG/PKG 在 Gatekeeper 上会被拦截"]
+
+distribution:
+  store: null
+  requirements: ["codesign 有效", "spctl 通过", "notarytool accepted", "stapler validate 通过"]
+
+verification:
+  install: "hdiutil attach <package>.dmg 或 installer <package>.pkg"
+  run: "spctl --assess --type open <package>.app 或 spctl --assess --type install <package>.pkg"
+  checks: ["codesign --verify --deep --strict", "productbuild/productsign（PKG）", "spctl --assess", "notarytool history/info", "stapler validate", "SHA256 校验和"]
+
+known_issues:
+  - id: "macos-runner-only"
+    severity: "high"
+    symptom: "Linux/Windows 主机无法完成 Apple 签名或公证"
+    cause: "Apple 工具链与 Developer ID 私钥绑定 macOS"
+    fix: ["派发到 macos-14 runner", "将证书只作为 CI secret 注入"]
+
+compatibility:
+  - target: "macOS 13+ / x86_64 or arm64"
+    remark: "当前 CI 构建与 Gatekeeper 验证基线"
+
+decision_rules:
+  artifact_selection:
+    - condition: "macOS 桌面应用本地分发"
+      recommendation: "桌面拖拽分发选择 DMG；系统安装器选择 PKG，并完成对应 Developer ID 签名与公证"

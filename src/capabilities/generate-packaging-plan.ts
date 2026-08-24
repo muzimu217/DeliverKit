@@ -168,7 +168,7 @@ function resolveDeliveryTargets(
         code: 'invalid_input',
         summary: `无法解析交付目标: ${unresolved.join(', ')}`,
         suggested_fix:
-          '当前支持 Ubuntu/Debian（linux/ubuntu）和 HarmonyOS（mobile/harmonyos）生态，例如 deb、docker、ubuntu、harmonyos、app、hap',
+          '当前支持 Linux（deb、rpm、appimage）、Windows（msi）和 HarmonyOS（harmonyos、hap）目标',
       },
     };
   }

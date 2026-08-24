@@ -32,9 +32,17 @@ try {
 
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+    'generate_ci_workflow',
     'generate_packaging_plan',
+    'generate_release_manifest',
     'get_ecosystem_knowledge',
     'inspect_project',
+    'pack_appimage',
+    'pack_deb',
+    'pack_harmonyos',
+    'pack_macos',
+    'pack_rpm',
+    'pack_windows_msi',
   ]);
 
   const response = await client.callTool({

@@ -1,0 +1,61 @@
+schema_version: 1
+id: "desktop/windows"
+ecosystem: "windows"
+name: "Windows MSI"
+status: "experimental"
+updated_at: "2026-08-15"
+summary: "在 Windows runner 使用 WiX 生成 MSI，并用 Authenticode 签名与 msiexec 静默安装验证。"
+
+artifacts:
+  - id: "msi"
+    extension: ".msi"
+    store_ready: false
+    note: "Windows 安装程序；正式分发必须配置代码签名证书"
+
+toolchain:
+  build_os: "windows"
+  cross_buildable: false
+  required: ["GitHub Actions windows-latest", "WiX Toolset v4", "signtool", "msiexec"]
+  install_hint: "在 GitHub Actions windows-latest runner 安装 WiX，并注入 DELIVERKIT_WINDOWS_PFX_BASE64 与 DELIVERKIT_WINDOWS_PFX_PASSWORD secrets"
+
+signing:
+  required: true
+  type: "codesign"
+  issuer: "Microsoft Authenticode certificate authority"
+  how_to_get: "向受信任 CA 购买 Windows 代码签名证书，将 PFX 与密码作为 GitHub Actions secrets 保存"
+  provider_url: "https://learn.microsoft.com/en-us/azure/trusted-signing/quickstart"
+  account_requirements: ["个人或组织身份验证", "受支持地区的 Microsoft/CA 账户"]
+  material_checklist: ["代码签名 PFX", "PFX 密码", "证书链与时间戳服务配置"]
+  setup_steps: ["选择 CA 或 Microsoft Trusted Signing", "完成身份验证并申请签名材料", "在本地验证证书用途与链", "把 PFX 和密码分别写入 CI secrets", "构建后运行 signtool verify /pa /all"]
+  secret_ref: "secret://DELIVERKIT_WINDOWS_PFX_BASE64"
+  risks: ["证书私钥不得写入仓库或构建日志", "时间戳服务不可用时签名可能无法长期验证"]
+
+distribution:
+  store: null
+  requirements: ["MSI 静默安装成功", "Authenticode 签名有效", "发布 SHA256"]
+
+verification:
+  install: "msiexec /i <package>.msi /qn /norestart"
+  run: "signtool verify /pa /all <package>.msi"
+  checks: ["signtool verify /pa", "msiexec 静默安装", "安装日志无错误", "SHA256 校验和"]
+
+known_issues:
+  - id: "certificate-required"
+    severity: "high"
+    symptom: "没有签名材料时无法生成可发布 MSI"
+    cause: "Windows 代码签名私钥只能由用户合法提供"
+    fix: ["配置 GitHub Actions secrets", "不要在日志中打印 PFX 或密码"]
+  - id: "runner-only"
+    severity: "high"
+    symptom: "macOS/Linux 主机无法执行 signtool 或 msiexec"
+    cause: "Windows 官方工具链与安装验证绑定 Windows"
+    fix: ["生成并派发到 windows-latest runner"]
+
+compatibility:
+  - target: "Windows 10/11 x86_64"
+    remark: "当前 CI 构建与安装验证基线"
+
+decision_rules:
+  artifact_selection:
+    - condition: "用户需要 Windows 桌面安装程序"
+      recommendation: "选择 MSI，并在 Windows runner 注入代码签名 secrets"

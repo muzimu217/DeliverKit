@@ -11,7 +11,11 @@ Agent 通过 MCP 工具 `get_ecosystem_knowledge` 显式读取某个生态的产
 - `ecosystem-schema.ts` — 知识包 schema + JSON Schema 导出。
 - `ecosystem-loader.ts` — list / load / 校验，校验失败返回可行动错误。
 
-当前已注册生态：`linux/ubuntu`、`mobile/harmonyos`。
+发布边界：知识包 YAML/YML 保留在源码仓库，故意不进入 npm tarball。编译后的
+运行时会优先读取自身目录；在 npm/CI 场景需把项目源码（包含 `src/knowledge`）
+一并 checkout，loader 才能读取最新知识包。
+
+当前已注册生态：`linux/ubuntu`、`linux/rpm`、`linux/appimage`、`desktop/windows`、`desktop/macos`、`mobile/harmonyos`。
 
 ## 新增生态
 

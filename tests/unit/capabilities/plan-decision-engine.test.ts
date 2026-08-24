@@ -21,6 +21,7 @@ const pythonInspection: InspectProjectOutput = {
 
 const ubuntu = loadEcosystem('linux/ubuntu')!;
 const harmony = loadEcosystem('mobile/harmonyos')!;
+const apple = loadEcosystem('desktop/macos')!;
 
 const ubuntuTarget: DeliveryTargetPlan = { id: 'linux/ubuntu', knowledge: ubuntu, artifactIds: ['deb'] };
 const harmonyTarget: DeliveryTargetPlan = { id: 'mobile/harmonyos', knowledge: harmony, artifactIds: ['app'] };
@@ -51,7 +52,7 @@ describe('plan decision engine（知识包驱动）', () => {
   it('鸿蒙目标提示 AGC 正式签名与构建', () => {
     const actions = deriveNextActions([harmonyTarget], pythonInspection);
 
-    expect(actions.some((a) => a.includes('pack_harmonyos_app'))).toBe(true);
+    expect(actions.some((a) => a.includes('pack_harmonyos'))).toBe(true);
     expect(actions.some((a) => a.includes('AppGallery'))).toBe(true);
   });
 
@@ -65,5 +66,12 @@ describe('plan decision engine（知识包驱动）', () => {
 
     expect(actions.some((a) => a.includes('build_docker_image'))).toBe(true);
     expect(actions.some((a) => a.includes('自动生成'))).toBe(true);
+  });
+
+  it('macOS targets describe both DMG and PKG execution paths', () => {
+    const actions = deriveNextActions([{ id: 'desktop/macos', knowledge: apple, artifactIds: ['dmg', 'pkg'] }], pythonInspection);
+
+    expect(actions.some((a) => a.includes('--artifact dmg'))).toBe(true);
+    expect(actions.some((a) => a.includes('--artifact pkg'))).toBe(true);
   });
 });

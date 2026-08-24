@@ -39,7 +39,7 @@ export function commandExists(cmd: string): boolean {
 export function runCommand(
   command: string,
   args: string[],
-  options: { cwd?: string; timeout?: number } = {}
+  options: { cwd?: string; timeout?: number; env?: NodeJS.ProcessEnv } = {}
 ): CommandResult {
   const { cwd, timeout = 120000 } = options;
 
@@ -47,6 +47,7 @@ export function runCommand(
     const stdout = execFileSync(command, args, {
       cwd,
       timeout,
+      env: options.env ? { ...process.env, ...options.env } : undefined,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       maxBuffer: 10 * 1024 * 1024, // 10MB
@@ -106,6 +107,8 @@ export function runCommandWithLog(
     timeout?: number;
     logDir?: string;
     logFileName?: string;
+    redactedArgs?: string[];
+    env?: NodeJS.ProcessEnv;
   } = {}
 ): CommandLogResult {
   const { logDir = 'dist/forgekit/logs', logFileName = `${command}-${Date.now()}.log` } = options;
@@ -117,7 +120,7 @@ export function runCommandWithLog(
   // 先创建日志，再把子进程 stdout/stderr 直接连接到文件。这样镜像拉取等长任务
   // 执行期间就能看到进度，而不是等 execFileSync 返回后才一次性落盘。
   const logHeader = [
-    `# Command: ${command} ${args.join(' ')}`,
+    `# Command: ${command} ${(options.redactedArgs ?? args).join(' ')}`,
     `# Started: ${new Date().toISOString()}`,
     '',
     '## Combined output (live)',
@@ -131,6 +134,7 @@ export function runCommandWithLog(
     execFileSync(command, args, {
       cwd: options.cwd,
       timeout: options.timeout ?? 120000,
+      env: options.env ? { ...process.env, ...options.env } : undefined,
       stdio: ['ignore', logFd, logFd],
     });
     result = { exitCode: 0, stdout: '', stderr: '', success: true };

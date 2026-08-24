@@ -23,7 +23,7 @@ function readPack(file: string): unknown {
 
 describe('ecosystem knowledge schema', () => {
   it('两个真实样例通过 schema 校验', () => {
-    for (const file of ['linux-ubuntu.yaml', 'harmonyos.yaml']) {
+    for (const file of ['linux-ubuntu.yaml', 'linux-rpm.yaml', 'linux-appimage.yaml', 'windows.yaml', 'macos.yaml', 'harmonyos.yaml']) {
       const result = EcosystemKnowledgeSchema.safeParse(readPack(file));
       expect(result.success, `${file} 应通过校验`).toBe(true);
     }
@@ -42,6 +42,16 @@ describe('ecosystem knowledge schema', () => {
     expect(harmony.signing.required).toBe(true);
     expect(harmony.signing.type).toBe('agc');
     expect(harmony.distribution.store).toBe('AppGallery');
+  });
+
+  it('平台签名知识包包含申请入口、材料清单和注入步骤', () => {
+    for (const file of ['windows.yaml', 'macos.yaml', 'harmonyos.yaml']) {
+      const knowledge = EcosystemKnowledgeSchema.parse(readPack(file));
+      expect(knowledge.signing.provider_url).toMatch(/^https:\/\//);
+      expect(knowledge.signing.account_requirements.length).toBeGreaterThan(0);
+      expect(knowledge.signing.material_checklist.length).toBeGreaterThan(0);
+      expect(knowledge.signing.setup_steps.length).toBeGreaterThan(0);
+    }
   });
 
   it('坏样例（空产物列表）给出可行动校验错误', () => {

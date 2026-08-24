@@ -168,7 +168,19 @@ export function resolveEcosystemId(target?: string): string | null {
   if (!normalized.trim()) {
     return 'linux/ubuntu';
   }
-  if (/ubuntu|debian|linux|deb|docker|rpm|appimage/.test(normalized)) {
+  if (/rpm|fedora|centos|rhel|rocky/.test(normalized)) {
+    return 'linux/rpm';
+  }
+  if (/appimage/.test(normalized)) {
+    return 'linux/appimage';
+  }
+  if (/windows|win32|msi|exe/.test(normalized)) {
+    return 'desktop/windows';
+  }
+  if (/macos|darwin|apple|dmg|pkg/.test(normalized)) {
+    return 'desktop/macos';
+  }
+  if (/ubuntu|debian|linux|deb|docker/.test(normalized)) {
     return 'linux/ubuntu';
   }
   if (/harmony|鸿蒙|openharmony|hap|\bapp\b/.test(normalized)) {
@@ -191,6 +203,21 @@ export function selectArtifactIds(target: string, knowledge: EcosystemKnowledge)
   }
   if (/deb/.test(normalized)) {
     wanted.add('deb');
+  }
+  if (/rpm/.test(normalized)) {
+    wanted.add('rpm');
+  }
+  if (/appimage/.test(normalized)) {
+    wanted.add('appimage');
+  }
+  if (/msi/.test(normalized)) {
+    wanted.add('msi');
+  }
+  if (/dmg/.test(normalized)) {
+    wanted.add('dmg');
+  }
+  if (/pkg/.test(normalized)) {
+    wanted.add('pkg');
   }
   if (/\bapp\b/.test(normalized)) {
     wanted.add('app');

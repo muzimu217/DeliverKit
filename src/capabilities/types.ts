@@ -32,7 +32,9 @@ export interface Artifact {
     | 'exe'
     | 'msi'
     | 'dmg'
-    | 'pkg';
+    | 'pkg'
+    | 'github-actions-workflow'
+    | 'release-manifest';
   path: string;
   checksum?: string;
   size_bytes?: number;
@@ -84,6 +86,11 @@ export type ErrorCode =
   | 'language_not_supported'
   | 'entrypoint_not_found'
   | 'build_config_invalid'
+  | 'toolchain_not_available'
+  | 'build_failed'
+  | 'verification_failed'
+  | 'artifact_not_found'
+  | 'signing_material_missing'
   | 'invalid_input'
   // 通用
   | 'unknown_error';
@@ -139,7 +146,7 @@ export interface DeliveryTargetSummary {
  * 所有构建类工具（pack_* / build_*）必须接收 plan_path
  * 缺失时返回 plan_not_found 错误
  *
- * 当前阶段 DeliverKit 只暴露规划类工具；构建工具接入后在此生效。
+ * 编排与构建工具在 executor 中统一执行此契约。
  */
 export interface BuildToolInput {
   source_dir: string;

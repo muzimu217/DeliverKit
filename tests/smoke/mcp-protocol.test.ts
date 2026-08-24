@@ -22,14 +22,22 @@ afterAll(() => {
 
 describe('MCP 协议层冒烟测试', () => {
   describe('工具发现测试', () => {
-    it('能列出全部规划类工具', () => {
+    it('能列出全部已注册工具', () => {
       const tools = registerTools();
       const toolNames = tools.map((t) => t.name);
 
       expect(toolNames).toContain('inspect_project');
       expect(toolNames).toContain('generate_packaging_plan');
       expect(toolNames).toContain('get_ecosystem_knowledge');
-      expect(tools.length).toBe(3);
+      expect(toolNames).toContain('pack_deb');
+      expect(toolNames).toContain('pack_rpm');
+      expect(toolNames).toContain('pack_appimage');
+      expect(toolNames).toContain('generate_ci_workflow');
+      expect(toolNames).toContain('pack_windows_msi');
+      expect(toolNames).toContain('pack_macos');
+      expect(toolNames).toContain('pack_harmonyos');
+      expect(toolNames).toContain('generate_release_manifest');
+      expect(tools.length).toBe(11);
     });
 
     it('所有工具都有正确的 Schema', () => {

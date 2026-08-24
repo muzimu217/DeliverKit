@@ -1,6 +1,6 @@
 # DeliverKit 路线图
 
-> 状态日期：2026-08-13
+> 状态日期：2026-08-16
 > 定位：给 AI（Agent）使用的「全生态交付大脑」
 
 ## 1. 定位
@@ -55,37 +55,70 @@ DeliverKit 自己不假装一台机器能产出全生态——它懂得"每种�
 |---|---|---|---|
 | Linux (.deb/.rpm/AppImage) | 本地 / 任意 Linux | 无强制签名（仓库分发可选 GPG） | 全流程 + 干净环境安装验证 |
 | Windows (.exe/.msi) | CI `windows-latest` | 用户在 CA 购买代码签名证书 → 存为 CI secret → runner 上 signtool 签名 | 生成 WiX/NSIS 配置 + CI 工作流 + 引导办证书 + 验证 |
-| 苹果 (.dmg/.pkg/.app) | CI `macos-latest` | Apple 开发者账号证书存入 CI keychain → xcodebuild 签名 → notarytool 公证 | 生成签名/公证配置 + CI 工作流 + 引导办开发者账号 + 验证票据 |
+| 苹果 (.dmg/.pkg/.app) | CI `macos-14` | Apple 开发者账号证书存入 CI keychain → xcodebuild 签名 → notarytool 公证 | 生成签名/公证配置 + CI 工作流 + 引导办开发者账号 + 验证票据 |
 | iOS (.ipa) | CI `macos-latest` | 同上 + 描述文件（provisioning profile） | 同上（更复杂，放最后阶段） |
 | 鸿蒙 (.hap/.app) | 华为云 / DevEco | AGC 证书 + profile 存为 secret | 签名 + 云手机验证 |
 
 ## 5. 路线图（每阶段有门槛，上一阶段验证通过才进下一阶段）
 
-### 阶段 A — 契约层与知识地基（当前）
+### 阶段 A — 契约层与知识地基（已完成）
 - 两个规划类工具已就绪（`inspect_project`、`generate_packaging_plan`）。
 - 定义"生态知识包" schema，把现有 ubuntu/harmonyos 适配器迁进去。
 - **门槛**：知识包 schema 有 ≥2 个真实样例；契约层支持多目标 `delivery_targets`。
 
-### 阶段 B — Linux 多生态可验证交付
+已满足：知识包 schema 已有 Linux Ubuntu、Linux RPM、Linux AppImage 与 HarmonyOS
+样例；`Forge.md` 已嵌入可校验的多目标机器契约。
+
+### 阶段 B — Linux 多生态可验证交付（已完成：本地 matrix 门槛已复现）
 - 做能在一台 Linux 机器上合法产出的：`.deb`（补验证闭环）+ `.rpm` + AppImage。
 - 给包补上"干净容器里装 + 跑"的验证。
 - 扩展 `Forge.md` 的 `delivery_targets`。
 - **门槛**：≥3 个真实项目，一份 Forge.md 产出多个 Linux 包且全部通过安装验证。
 
-### 阶段 C — 编排层 + CI 矩阵
+当前已实现 `pack_deb`、`pack_rpm`、`pack_appimage`，并提供
+`npm run test:e2e:linux` 对 Python Flask、TypeScript 和 Go 标准库 HTTP 三个真实
+fixture 逐一生成同一份多目标 Forge.md，再执行三种 Docker 构建与干净容器验证。
+该命令的成功输出是 Phase B 门槛的可复现实证；仓库 `.github/workflows/test.yml`
+也已加入 `linux-matrix` job，在 Ubuntu 22.04 上上传 JSON 证据。其他原生 Linux
+主机复核仍建议继续执行。
+
+### 阶段 C — 编排层 + CI 矩阵（实现中）
 - 实现编排层：DeliverKit 能生成 GitHub Actions 多平台工作流。
 - 先打通 **Windows `.msi`**（签名门槛比苹果低）：CI windows runner + 证书 secret + 安装验证。
 - **门槛**：≥2 个真实项目在 CI 上产出已签名且可静默安装的 Windows 包。
 
-### 阶段 D — 苹果生态
+当前已实现 `generate_ci_workflow` 与 `pack_windows_msi`：工作流包含
+`ubuntu-22.04` Linux job 和 `windows-latest` MSI job，PFX 与密码仅从 CI
+secrets 注入；Windows 真机/runner 签名产物尚未在本仓库完成实证，因此阶段门槛仍未达成。
+
+### 阶段 D — 苹果生态（实现中）
 - macOS `.dmg`/`.pkg`：CI macos runner + 签名 + 公证 + 票据验证。
 - **门槛**：≥1 个真实项目产出通过 `spctl`/公证校验的 macOS 包。
 - iOS `.ipa` 视需求再排（最复杂，涉及 App Store 上架）。
 
-### 阶段 E — 鸿蒙正式化 + 统一交付报告
+当前已实现 `pack_macos` 的 DMG/PKG 路径与 macOS CI job；PKG 额外要求
+Developer ID Installer identity。缺少 Apple Developer 证书、公证凭据和可用
+macOS runner 实证，因此门槛未宣称达成。
+
+### 阶段 E — 鸿蒙正式化 + 统一交付报告（实现中）
 - 鸿蒙：补 AGC 正式签名 + 云手机验证。
 - 统一 Release Manifest：一份报告覆盖全部生态的"成功/证据"。
 - **门槛**：一条 AI 指令 → 一份 Forge.md → 多生态产物 + 统一可验证报告。
+
+当前已实现 `pack_harmonyos`、HarmonyOS CI job 与 `generate_release_manifest`；Linux
+真实 matrix 现在同时生成 `verified` Release Manifest，
+生成的 HarmonyOS job 明确要求 Linux self-hosted DevEco runner，并在执行前检查
+`hvigorw`、`ohpm`、`hdc` 工具链，
+AGC/hdc 设备证据和跨平台真实结果仍是最终门槛。
+
+### 阶段 P1 — 交付百科与第一阶段宣发（已完成首版）
+- 建立可直接部署的静态百科站点 `site/`，作为开发者与 Agent 的公开入口。
+- 把 Windows Authenticode、Apple Developer/notarization、HarmonyOS AGC、Linux GPG 的申请入口、材料清单、CI 注入步骤写入知识包与站点指南。
+- 明确个人账号可以作为材料提供方，但资格由平台/CA 决定；DeliverKit 不代办账号、不生成证书、不保存私钥。
+- 第一阶段公开内容聚焦 Linux 真实矩阵、跨平台签名边界、可复用知识包；正式邮件订阅接入前，站点表单只做本地预览。
+- **门槛**：站点在 375px/768px/1440px 无横向溢出，核心筛选/指南交互可用，且不包含任何真实 secrets。
+
+当前首版已通过浏览器断点与交互验收；正式宣发前仍需接入邮件/社区订阅服务、隐私政策和统一域名。
 
 ## 6. 成功标准（愿景达成的样子）
 

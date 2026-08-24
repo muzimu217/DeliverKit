@@ -41,6 +41,20 @@ describe('Executor - 输入校验', () => {
     expect(result.error?.summary).toContain('goals');
   });
 
+  it('构建工具缺少 plan_path 时保留 plan_not_found 契约', async () => {
+    const result = await executeTool('pack_deb', { source_dir: tmpDir });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('plan_not_found');
+  });
+
+  it('CI 编排工具缺少 plan_path 时保留 plan_not_found 契约', async () => {
+    const result = await executeTool('generate_ci_workflow', { source_dir: tmpDir });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('plan_not_found');
+  });
+
   it('未知工具返回 unknown_error', async () => {
     const result = await executeTool('unknown_tool', {});
 
@@ -95,7 +109,7 @@ describe('Executor - 路由到真实能力', () => {
   });
 
   it('get_ecosystem_knowledge 查询未注册生态返回 ecosystem_not_found', async () => {
-    const result = await executeTool('get_ecosystem_knowledge', { ecosystem: 'desktop/windows' });
+    const result = await executeTool('get_ecosystem_knowledge', { ecosystem: 'desktop/unknown' });
 
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('ecosystem_not_found');

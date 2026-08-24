@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:runtime": "npm run build:clean && node tests/runtime/compiled-mcp-smoke.mjs",
+    "test:e2e:linux": "npm run build:clean && node tests/e2e/linux-matrix.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
@@ -73,9 +74,7 @@
   },
   "files": [
     "dist",
-    "src/knowledge",
     "src/packaging",
-    "src/systems",
     "README.md",
     "LICENSE"
   ]

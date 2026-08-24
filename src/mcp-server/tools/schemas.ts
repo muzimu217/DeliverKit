@@ -1,11 +1,11 @@
 /**
  * MCP Tool Schemas - Zod validation schemas
  *
- * DeliverKit 当前暴露两个规划类工具：
+ * DeliverKit 当前暴露规划、编排与构建工具：
  * - inspect_project: 识别项目，给出跨生态交付目标建议
  * - generate_packaging_plan: 生成 Forge.md 交付契约（目标生态 / 产物 / 风险）
  *
- * 构建类工具（pack_* / build_*）按阶段逐步接入，届时在此登记 plan_path 强约束。
+ * 构建与编排工具统一登记 plan_path 强约束。
  */
 
 import { z } from 'zod';
@@ -31,7 +31,7 @@ const ArtifactSchema = z.object({
   type: z.enum([
     'docker-image', 'deb-package', 'rpm-package', 'appimage',
     'apk', 'ipa', 'hap', 'app', 'pwa',
-    'exe', 'msi', 'dmg', 'pkg',
+    'exe', 'msi', 'dmg', 'pkg', 'github-actions-workflow', 'release-manifest',
   ]).describe('产物类型'),
   path: z.string().describe('产物路径'),
   checksum: z.string().optional().describe('SHA256 校验和'),
@@ -61,6 +61,11 @@ const DeliverKitErrorSchema = z.object({
     'language_not_supported',
     'entrypoint_not_found',
     'build_config_invalid',
+    'toolchain_not_available',
+    'build_failed',
+    'verification_failed',
+    'artifact_not_found',
+    'signing_material_missing',
     'invalid_input',
     'unknown_error',
   ]).describe('错误代码'),
@@ -148,8 +153,86 @@ export const GetEcosystemKnowledgeOutputSchema = DeliverKitResultSchema.extend({
   total: z.number().int().nonnegative().optional().describe('返回的生态知识包数量'),
 });
 
-// 构建类工具 schema 占位：pack_deb / pack_rpm / pack_appimage / pack_windows /
-// pack_apple / pack_harmonyos 将在对应阶段加入 ToolInputSchemas，并复用 PlanPathSchema。
+// pack_deb
+export const PackDebInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
+  package_name: z.string().optional().describe('Debian 包名；缺省时使用项目名'),
+});
+
+export const PackDebOutputSchema = DeliverKitResultSchema;
+
+// pack_rpm
+export const PackRpmInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
+  package_name: z.string().optional().describe('RPM 包名；缺省时使用项目名'),
+});
+
+export const PackRpmOutputSchema = DeliverKitResultSchema;
+
+// pack_appimage
+export const PackAppImageInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
+  package_name: z.string().optional().describe('AppImage 名称；缺省时使用项目名'),
+});
+
+export const PackAppImageOutputSchema = DeliverKitResultSchema;
+
+// generate_ci_workflow
+export const GenerateCiWorkflowInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_path: z.string().optional().describe('工作流输出路径，默认 <source_dir>/.github/workflows/deliverkit.yml'),
+  overwrite: z.boolean().optional().describe('是否允许覆盖已存在的工作流文件，默认 false'),
+});
+
+export const GenerateCiWorkflowOutputSchema = DeliverKitResultSchema;
+
+// pack_windows_msi
+export const PackWindowsMsiInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
+  package_name: z.string().optional().describe('MSI 名称；缺省时使用项目名'),
+});
+
+export const PackWindowsMsiOutputSchema = DeliverKitResultSchema;
+
+// pack_macos
+export const PackMacosInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
+  package_name: z.string().optional().describe('DMG/PKG 名称；缺省时使用项目名'),
+  artifact: z.enum(['dmg', 'pkg']).optional().describe('构建 DMG 或签名 PKG，默认按计划选择'),
+});
+
+export const PackMacosOutputSchema = DeliverKitResultSchema;
+
+// pack_harmonyos
+export const PackHarmonyosInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
+  artifact: z.enum(['hap', 'app']).optional().describe('构建 HAP 或正式 APP，默认按计划选择'),
+});
+
+export const PackHarmonyosOutputSchema = DeliverKitResultSchema;
+
+// generate_release_manifest
+export const GenerateReleaseManifestInputSchema = z.object({
+  source_dir: SourceDirSchema,
+  plan_path: PlanPathSchema,
+  results_dir: z.string().optional().describe('平台结果 JSON 目录，默认 <source_dir>/.deliverkit/results'),
+  output_path: z.string().optional().describe('报告输出路径，默认 <source_dir>/ReleaseManifest.json'),
+});
+
+export const GenerateReleaseManifestOutputSchema = DeliverKitResultSchema;
 
 // ========== 导出类型（从 Schema 推导）==========
 
@@ -161,6 +244,22 @@ export type GeneratePackagingPlanOutput = z.infer<typeof GeneratePackagingPlanOu
 
 export type GetEcosystemKnowledgeInput = z.infer<typeof GetEcosystemKnowledgeInputSchema>;
 export type GetEcosystemKnowledgeOutput = z.infer<typeof GetEcosystemKnowledgeOutputSchema>;
+export type PackDebInput = z.infer<typeof PackDebInputSchema>;
+export type PackDebOutput = z.infer<typeof PackDebOutputSchema>;
+export type PackRpmInput = z.infer<typeof PackRpmInputSchema>;
+export type PackRpmOutput = z.infer<typeof PackRpmOutputSchema>;
+export type PackAppImageInput = z.infer<typeof PackAppImageInputSchema>;
+export type PackAppImageOutput = z.infer<typeof PackAppImageOutputSchema>;
+export type GenerateCiWorkflowInput = z.infer<typeof GenerateCiWorkflowInputSchema>;
+export type GenerateCiWorkflowOutput = z.infer<typeof GenerateCiWorkflowOutputSchema>;
+export type PackWindowsMsiInput = z.infer<typeof PackWindowsMsiInputSchema>;
+export type PackWindowsMsiOutput = z.infer<typeof PackWindowsMsiOutputSchema>;
+export type PackMacosInput = z.infer<typeof PackMacosInputSchema>;
+export type PackMacosOutput = z.infer<typeof PackMacosOutputSchema>;
+export type PackHarmonyosInput = z.infer<typeof PackHarmonyosInputSchema>;
+export type PackHarmonyosOutput = z.infer<typeof PackHarmonyosOutputSchema>;
+export type GenerateReleaseManifestInput = z.infer<typeof GenerateReleaseManifestInputSchema>;
+export type GenerateReleaseManifestOutput = z.infer<typeof GenerateReleaseManifestOutputSchema>;
 
 /**
  * Single source of truth for MCP tool input contracts.
@@ -170,6 +269,14 @@ export const ToolInputSchemas = {
   inspect_project: InspectProjectInputSchema,
   generate_packaging_plan: GeneratePackagingPlanInputSchema,
   get_ecosystem_knowledge: GetEcosystemKnowledgeInputSchema,
+  pack_deb: PackDebInputSchema,
+  pack_rpm: PackRpmInputSchema,
+  pack_appimage: PackAppImageInputSchema,
+  generate_ci_workflow: GenerateCiWorkflowInputSchema,
+  pack_windows_msi: PackWindowsMsiInputSchema,
+  pack_macos: PackMacosInputSchema,
+  pack_harmonyos: PackHarmonyosInputSchema,
+  generate_release_manifest: GenerateReleaseManifestInputSchema,
 } as const;
 
 export type ToolName = keyof typeof ToolInputSchemas;

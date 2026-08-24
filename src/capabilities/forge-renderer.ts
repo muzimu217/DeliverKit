@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { readTextFile } from './utils/filesystem.js';
 import type { InspectProjectOutput } from './types.js';
 import type { DeliveryTargetPlan } from './plan-decision-engine.js';
+import { renderForgeContract, type ForgeContract } from './forge-contract.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_CANDIDATES = [
@@ -30,8 +31,9 @@ export function renderForgeMd(context: ForgeRenderContext): string {
   const entry = inspection.entrypoints?.[0] || '（未检测到）';
   const projectType = inferProjectType(deliveryTargets);
 
-  return template
-    .replace(/{{generated_at}}/g, new Date().toISOString())
+  const generatedAt = new Date().toISOString();
+  const rendered = template
+    .replace(/{{generated_at}}/g, generatedAt)
     .replace(/{{project_name}}/g, projectName)
     .replace(/{{project_type}}/g, projectType)
     .replace(/{{language}}/g, inspection.language || (projectType === 'mobile' ? 'ArkTS' : '未知'))
@@ -43,6 +45,26 @@ export function renderForgeMd(context: ForgeRenderContext): string {
     .replace(/{{verify_command}}/g, renderVerifyCommand(deliveryTargets))
     .replace(/{{results_section}}/g, renderResults(deliveryTargets))
     .replace(/{{next_actions_section}}/g, nextActions.map((a) => `- ${a}`).join('\n'));
+
+  const contract: ForgeContract = {
+    schema_version: 1,
+    generated_at: generatedAt,
+    // Keep committed Forge.md files portable across local and CI checkout paths.
+    // The loader resolves this relative to the plan directory before validating it.
+    source_dir: '.',
+    project: {
+      name: projectName,
+      language: inspection.language,
+      runtime: inspection.runtime,
+      entrypoints: inspection.entrypoints ?? [],
+    },
+    delivery_targets: deliveryTargets.map((target) => ({
+      ecosystem: target.id,
+      artifacts: target.artifactIds,
+    })),
+  };
+
+  return `${rendered.trimEnd()}\n\n${renderForgeContract(contract)}\n`;
 }
 
 function renderDeliveryTargets(targets: DeliveryTargetPlan[]): string {

@@ -3,7 +3,7 @@
  * ForgeKit 测试用示例项目
  */
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 
 interface ServerInfo {
   name: string;
@@ -26,7 +26,7 @@ class SampleApp {
     return this.info;
   }
 
-  greet(name: string = 'World'): string {
+  greet(name = 'World'): string {
     return `Hello, ${name}!`;
   }
 }

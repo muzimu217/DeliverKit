@@ -1,0 +1,4 @@
+# Ecosystem and legacy adapter knowledge is loaded from the checked-out source
+# tree in CI/runtime. Keep it versioned in Git but out of the npm tarball.
+**/*.yaml
+**/*.yml

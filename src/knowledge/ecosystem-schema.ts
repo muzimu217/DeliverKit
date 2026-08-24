@@ -49,6 +49,10 @@ const SigningSchema = z.object({
   type: z.enum(['none', 'gpg', 'codesign', 'apple', 'agc']).describe('签名类型'),
   issuer: z.string().nullable().optional().describe('签发方 / 证书来源（无则 null）'),
   how_to_get: z.string().optional().describe('如何获取签名材料'),
+  provider_url: z.string().url().optional().describe('官方申请或控制台入口'),
+  account_requirements: z.array(z.string()).default([]).describe('申请签名材料所需的账号/实名条件'),
+  material_checklist: z.array(z.string()).default([]).describe('用户需要自行准备并安全保管的材料'),
+  setup_steps: z.array(z.string()).default([]).describe('从申请到 CI 注入的操作步骤'),
   secret_ref: z.string().nullable().optional().describe('密钥引用（如 secret://...）'),
   risks: z.array(z.string()).default([]).describe('签名相关风险'),
 });

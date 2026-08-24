@@ -87,15 +87,66 @@ describe('generate_packaging_plan（知识包驱动）', () => {
     expect(ids).toContain('mobile/harmonyos');
   });
 
+  it('Linux 多目标：deb + rpm + AppImage 分别解析为明确生态', async () => {
+    const dir = makeProject('linux-multi-target');
+    fs.writeFileSync(path.join(dir, 'app.py'), 'print("ready")');
+
+    const result = await generatePackagingPlan(dir, ['deb', 'rpm', 'appimage']);
+
+    expect(result.status).toBe('success');
+    expect(result.delivery_targets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ecosystem: 'linux/ubuntu', artifacts: ['deb'] }),
+      expect.objectContaining({ ecosystem: 'linux/rpm', artifacts: ['rpm'] }),
+      expect.objectContaining({ ecosystem: 'linux/appimage', artifacts: ['appimage'] }),
+    ]));
+  });
+
+  it('Windows MSI 计划声明签名硬约束', async () => {
+    const dir = makeProject('windows-msi');
+    fs.writeFileSync(path.join(dir, 'app.py'), 'print("ready")');
+
+    const result = await generatePackagingPlan(dir, ['windows-msi']);
+
+    expect(result.status).toBe('success');
+    expect(result.delivery_targets).toEqual([
+      expect.objectContaining({ ecosystem: 'desktop/windows', artifacts: ['msi'], signing_required: true }),
+    ]);
+    expect(fs.readFileSync(result.plan_path!, 'utf8')).toContain('desktop/windows');
+  });
+
+  it('macOS DMG 计划声明 Apple 签名与公证目标', async () => {
+    const dir = makeProject('macos-dmg');
+    fs.mkdirSync(path.join(dir, 'Demo.app', 'Contents'), { recursive: true });
+
+    const result = await generatePackagingPlan(dir, ['macos-dmg']);
+
+    expect(result.status).toBe('success');
+    expect(result.delivery_targets).toEqual([
+      expect.objectContaining({ ecosystem: 'desktop/macos', artifacts: ['dmg'], signing_required: true }),
+    ]);
+  });
+
+  it('macOS PKG 计划保留 installer package 目标', async () => {
+    const dir = makeProject('macos-pkg');
+    fs.mkdirSync(path.join(dir, 'Demo.app', 'Contents'), { recursive: true });
+
+    const result = await generatePackagingPlan(dir, ['macos-pkg']);
+
+    expect(result.status).toBe('success');
+    expect(result.delivery_targets).toEqual([
+      expect.objectContaining({ ecosystem: 'desktop/macos', artifacts: ['pkg'], signing_required: true }),
+    ]);
+  });
+
   it('未支持的目标返回 invalid_input 且不写 Forge.md', async () => {
     const dir = makeProject('unsupported');
     fs.writeFileSync(path.join(dir, 'app.py'), '');
 
-    const result = await generatePackagingPlan(dir, ['windows-msi']);
+    const result = await generatePackagingPlan(dir, ['android-apk']);
 
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('invalid_input');
-    expect(result.error?.summary).toContain('windows-msi');
+    expect(result.error?.summary).toContain('android-apk');
     expect(fs.existsSync(path.join(dir, 'Forge.md'))).toBe(false);
   });
 

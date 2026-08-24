@@ -44,8 +44,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 /**
  * Handler: Execute tool call
  *
- * 规划阶段：使用 executor 路由（协议层）
- * - 构建类工具强制校验 plan_path（接入后生效）
+ * 使用 executor 路由（协议层）
+ * - 编排/构建类工具强制校验 plan_path
  * - 所有调用返回结构化结果
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
 
   console.error(`${SERVER_NAME} v${SERVER_VERSION} started`);
   console.error('DeliverKit MCP Server ready for AI agent connections');
-  console.error('已注册工具：inspect_project, generate_packaging_plan, get_ecosystem_knowledge');
+console.error('已注册工具：inspect_project, generate_packaging_plan, get_ecosystem_knowledge, pack_deb, pack_rpm, pack_appimage, generate_ci_workflow, pack_windows_msi, pack_macos, pack_harmonyos, generate_release_manifest');
 }
 
 main().catch((error) => {

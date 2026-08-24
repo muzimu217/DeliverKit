@@ -1,0 +1,52 @@
+schema_version: 1
+id: "linux/rpm"
+ecosystem: "linux"
+name: "RPM Linux (rpm)"
+status: "experimental"
+updated_at: "2026-08-15"
+summary: "服务器端应用打包为 RPM，面向 Rocky Linux/RHEL/Fedora 系统；使用干净容器完成安装和运行验证。"
+
+artifacts:
+  - id: "rpm"
+    extension: ".rpm"
+    store_ready: false
+    note: "系统级安装，适用于 RPM 系发行版"
+
+toolchain:
+  build_os: "linux"
+  cross_buildable: true
+  required: ["docker", "rpmbuild", "rpm"]
+  install_hint: "在 Linux CI 或启用 Docker 的主机上运行 pack_rpm"
+
+signing:
+  required: false
+  type: "none"
+  issuer: null
+  how_to_get: "本地分发无需签名；发布 RPM 仓库时使用 GPG 签名"
+  secret_ref: null
+  risks: []
+
+distribution:
+  store: null
+  requirements: ["spec 元数据完整", "运行时依赖正确", "目标发行版安装验证"]
+
+verification:
+  install: "rpm -Uvh <package>.rpm"
+  run: "<package-name>"
+  checks: ["rpm -qlp <package>.rpm", "rpm -qip <package>.rpm", "SHA256 校验和"]
+
+known_issues:
+  - id: "dependency-version-mismatch"
+    severity: "high"
+    symptom: "安装时无法解析运行时依赖"
+    cause: "构建环境与目标发行版版本不一致"
+    fix: ["在最低支持的 RPM 基线容器构建并验证", "将语言依赖打入应用目录"]
+
+compatibility:
+  - target: "Rocky Linux 9"
+    remark: "当前构建与验证基线"
+
+decision_rules:
+  artifact_selection:
+    - condition: "目标为 RHEL/Fedora 系服务器"
+      recommendation: "选择 rpm"

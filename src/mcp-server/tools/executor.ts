@@ -1,12 +1,12 @@
 /**
  * Tool Executor - CallTool handler.
  *
- * DeliverKit 当前路由两个规划类工具：
+ * DeliverKit 当前路由规划、编排与构建工具：
  * - inspect_project
  * - generate_packaging_plan
  *
- * Plan-before-build 机制保留：构建类工具（pack_* / build_*）接入后，
- * 会在此强制校验 plan_path（Forge.md 交付契约必须先存在）。
+ * Plan-before-build 机制：编排与构建工具都强制校验 plan_path（Forge.md
+ * 交付契约必须先存在）。
  */
 
 import * as fs from 'fs';
@@ -17,6 +17,14 @@ import type { ForgeKitResult } from '../../capabilities/types.js';
 import { inspectProject } from '../../capabilities/inspect-project.js';
 import { generatePackagingPlan } from '../../capabilities/generate-packaging-plan.js';
 import { getEcosystemKnowledge } from '../../capabilities/get-ecosystem-knowledge.js';
+import { packDeb } from '../../capabilities/pack-deb.js';
+import { packRpm } from '../../capabilities/pack-rpm.js';
+import { packAppImage } from '../../capabilities/pack-appimage.js';
+import { generateCiWorkflow } from '../../capabilities/generate-ci-workflow.js';
+import { packWindowsMsi } from '../../capabilities/pack-windows-msi.js';
+import { packMacos } from '../../capabilities/pack-macos.js';
+import { packHarmonyos } from '../../capabilities/pack-harmonyos.js';
+import { generateReleaseManifest } from '../../capabilities/generate-release-manifest.js';
 
 /**
  * Execute tool call
@@ -70,6 +78,71 @@ export async function executeTool(
 
     case 'get_ecosystem_knowledge':
       return getEcosystemKnowledge(input.ecosystem as string | undefined);
+
+    case 'pack_deb':
+      return packDeb({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputDir: input.output_dir as string | undefined,
+        packageName: input.package_name as string | undefined,
+      });
+
+    case 'pack_rpm':
+      return packRpm({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputDir: input.output_dir as string | undefined,
+        packageName: input.package_name as string | undefined,
+      });
+
+    case 'pack_appimage':
+      return packAppImage({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputDir: input.output_dir as string | undefined,
+        packageName: input.package_name as string | undefined,
+      });
+
+    case 'generate_ci_workflow':
+      return generateCiWorkflow({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputPath: input.output_path as string | undefined,
+        overwrite: input.overwrite as boolean | undefined,
+      });
+
+    case 'pack_windows_msi':
+      return packWindowsMsi({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputDir: input.output_dir as string | undefined,
+        packageName: input.package_name as string | undefined,
+      });
+
+    case 'pack_macos':
+      return packMacos({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputDir: input.output_dir as string | undefined,
+        packageName: input.package_name as string | undefined,
+        artifact: input.artifact as 'dmg' | 'pkg' | undefined,
+      });
+
+    case 'pack_harmonyos':
+      return packHarmonyos({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        outputDir: input.output_dir as string | undefined,
+        artifact: input.artifact as 'hap' | 'app' | undefined,
+      });
+
+    case 'generate_release_manifest':
+      return generateReleaseManifest({
+        sourceDir: input.source_dir as string,
+        planPath: input.plan_path as string,
+        resultsDir: input.results_dir as string | undefined,
+        outputPath: input.output_path as string | undefined,
+      });
 
   }
 }

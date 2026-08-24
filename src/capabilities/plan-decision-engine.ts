@@ -62,7 +62,7 @@ export function deriveNextActions(
   for (const target of targets) {
     const { knowledge, artifactIds } = target;
     if (knowledge.ecosystem === 'harmonyos') {
-      actions.push('调用 pack_harmonyos_app 执行构建（需携带 plan_path）');
+      actions.push('调用 pack_harmonyos 执行构建（需携带 plan_path）');
       if (knowledge.signing.required) {
         actions.push(
           `上架前在 ${knowledge.distribution.store} 配置正式签名：${knowledge.signing.how_to_get ?? '见知识包'}`
@@ -70,8 +70,25 @@ export function deriveNextActions(
       }
       continue;
     }
+    if (knowledge.ecosystem === 'apple') {
+      actions.push('调用 generate_ci_workflow 生成 macos-14 工作流（需配置 Apple secrets）');
+      for (const artifact of artifactIds.filter((id) => id === 'dmg' || id === 'pkg')) {
+        actions.push(`在 macOS runner 上调用 pack_macos --artifact ${artifact} 构建、签名、公证并验证 ${artifact.toUpperCase()}`);
+      }
+      continue;
+    }
     if (artifactIds.includes('deb')) {
       actions.push('调用 pack_deb 构建 deb 包（需携带 plan_path）');
+    }
+    if (artifactIds.includes('rpm')) {
+      actions.push('调用 pack_rpm 构建 rpm 包（需携带 plan_path）');
+    }
+    if (artifactIds.includes('appimage')) {
+      actions.push('调用 pack_appimage 构建 AppImage（需携带 plan_path）');
+    }
+    if (artifactIds.includes('msi')) {
+      actions.push('调用 generate_ci_workflow 生成 Windows runner 工作流（需配置签名 secrets）');
+      actions.push('在 Windows runner 上调用 pack_windows_msi 构建、签名并静默安装验证 MSI');
     }
     if (artifactIds.includes('docker-image')) {
       actions.push('调用 build_docker_image 构建镜像（需携带 plan_path）');
