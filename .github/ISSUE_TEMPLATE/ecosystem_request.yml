@@ -1,0 +1,42 @@
+name: 生态 / 目标支持请求
+description: 希望支持某个生态、产物类型或分发渠道
+labels: [ecosystem-request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DeliverKit 的生态知识必须有据可依。请尽量提供官方文档链接——
+        有出处的请求会被优先实现，因为它可以直接落成生态知识包。
+  - type: input
+    id: ecosystem
+    attributes:
+      label: 目标生态与产物
+      placeholder: 例如 linux/arch 的 pkg.tar.zst、Snap、Flatpak、Android APK
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: 该生态的硬约束
+      description: 产出必须在什么平台完成？需要什么账号、证书或官方工具链？
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: 官方文档链接
+      description: 打包格式、签名要求、分发/上架规则、验证方式
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 如何验证产物真的可用
+      description: 「装得上、跑得起来」在这个生态里具体是什么命令？（这决定我们能否满足真实验证铁律）
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: 你的场景
+      description: 你要交付什么产品，当前卡在哪一步

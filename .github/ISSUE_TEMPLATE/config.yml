@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使用问题与讨论
+    url: https://github.com/muzimu217/DeliverKit/discussions
+    about: 不确定是不是 bug、想问怎么用、想讨论交付方案，请到 Discussions
+  - name: 安全漏洞
+    url: https://github.com/muzimu217/DeliverKit/security/advisories/new
+    about: 安全问题请私下报告，不要开公开 issue
+  - name: 交付百科
+    url: https://muzimu217.github.io/DeliverKit/
+    about: 各生态签名材料获取路径、CI secret 边界与验证证据

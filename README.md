@@ -1,8 +1,27 @@
 # DeliverKit
 
+[![CI](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml/badge.svg)](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-stdio-blue)](https://modelcontextprotocol.io)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
+
 > **AI 交付大脑**：给 Agent 用的全生态交付编排工具。
 
 DeliverKit 不是一个"把 Linux 软件塞进 Windows 跑"的兼容层，而是一个给 AI（Agent）使用的**交付大脑**：它把各生态（Linux / Windows / 苹果 / 鸿蒙）的打包、签名、上架知识变成 AI 能读懂、能执行、能验证的能力，让 AI 理解用户需求后，规划出一条**合法合规的交付链路**，把已经开发好的产品送达每一个生态。
+
+## 30 秒上手
+
+```bash
+npx -y deliverkit doctor            # 先看本机现在能交付哪些目标，缺什么、怎么补
+npx -y deliverkit inspect .         # 识别项目语言与入口
+npx -y deliverkit plan . --goals deb,rpm   # 生成可评审的 Forge.md 交付契约
+npx -y deliverkit pack-deb . --plan Forge.md   # 构建 + 干净容器安装运行验证（需 Docker）
+```
+
+`doctor` 会把「这台机器现在能产出哪些包」摊开讲清楚——不能产出的目标不是缺陷，而是各生态用签名和官方工具链锁定了产出位置，DeliverKit 的做法是把它们规划到正确的 runner 上，而不是在本机伪造产物。
+
+失败时不会只丢一个日志路径给你：错误结果里带 `log_excerpt`（日志尾部片段）、`suggested_fix` 和 `next_actions`，Agent 和人都能直接看到原因与下一步。
+
 
 ## 它解决什么问题
 
@@ -17,7 +36,7 @@ DeliverKit 不是一个"把 Linux 软件塞进 Windows 跑"的兼容层，而是
 
 所以 DeliverKit **不假装一台机器产出全生态**——它懂得"每个安装包该在哪、用什么合法方式产出、怎么验证它真的能装能跑"，并指挥 AI 在正确的环境（本地 / CI 对应平台 runner / 云构建）里完成。这就绕开了各生态的硬约束，而不是去翻墙。
 
-## 当前能力（v0.1.0 · 契约层 + Linux 三目标实验闭环）
+## 当前能力（v0.2.0 · 契约层 + 多平台工具 + Linux 三目标闭环）
 
 DeliverKit 通过 MCP（stdio）暴露规划、编排与构建工具：
 
@@ -43,6 +62,8 @@ Ubuntu 22.04 上重复该 matrix 并上传 JSON 证据，其他 Linux 主机复�
 
 1. **计划先行**（Plan-before-build）：无 `Forge.md` 契约不构建。
 2. **真实验证**（Real verification）：不只看退出码，要验证产物装得上、跑得起来、签名有效。
+
+失败时的可行动性也被当作契约的一部分：Docker 不可用会区分「没装 / 守护进程没起 / 权限不足 / 探测超时」并给出各自的修复动作；构建超时不会伪装成普通构建失败；每次失败都带日志尾部片段与下一步命令。
 
 ## 接入
 
@@ -72,17 +93,27 @@ MCP（stdio）：
 CLI：
 
 ```bash
+deliverkit doctor                      # 自检本机可交付目标，缺什么、怎么补
 deliverkit inspect .                   # 识别项目与交付目标建议
 deliverkit plan . --goals deb,rpm      # 生成 Forge.md 交付契约
 deliverkit pack-deb . --plan Forge.md  # 构建并验证 deb（需要 Docker）
 deliverkit pack-rpm . --plan Forge.md  # 构建并验证 rpm（需要 Docker）
 deliverkit pack-appimage . --plan Forge.md  # 构建并验证 AppImage（需要 Docker）
-deliverkit generate-ci-workflow . --plan Forge.md  # 生成 Linux/Windows GitHub Actions 工作流
+deliverkit generate-ci-workflow . --plan Forge.md  # 生成多平台 GitHub Actions 工作流
 deliverkit pack-windows-msi . --plan Forge.md  # 仅 Windows runner 可执行，要求签名 secrets
 deliverkit pack-macos . --plan Forge.md  # 仅 macOS runner 可执行，按 Forge.md 构建 DMG/PKG
 deliverkit pack-harmonyos . --plan Forge.md  # 仅 DevEco runner 可执行，要求 AGC secrets/设备
 deliverkit generate-release-manifest . --plan Forge.md --results .deliverkit/results
 ```
+
+CLI 默认输出人类可读摘要（产物、验证项、失败原因、下一步）；任何命令加 `--json` 得到与 MCP 一致的结构化结果，供脚本和 Agent 消费。
+
+## 参与
+
+- 提 issue：[bug 报告 / 生态支持请求](https://github.com/muzimu217/DeliverKit/issues/new/choose)
+- 提 PR 前请读 [CONTRIBUTING.md](CONTRIBUTING.md)（含「新增生态知识包」与「新增 pack_* 工具」的检查清单）
+- 安全问题请按 [SECURITY.md](SECURITY.md) 私下反馈，不要开公开 issue
+- 讨论与提问：[GitHub Discussions](https://github.com/muzimu217/DeliverKit/discussions)
 
 ## 路线图
 

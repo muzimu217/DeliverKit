@@ -1,6 +1,6 @@
 {
   "name": "deliverkit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI 交付大脑：给 Agent 用的全生态交付编排 MCP 工具，把一个产品合法打包进 Linux/Windows/苹果/鸿蒙各生态",
   "type": "module",
   "main": "dist/mcp-server/index.js",

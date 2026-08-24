@@ -1,0 +1,49 @@
+name: Bug 报告
+description: 工具执行失败、结果不正确，或行为与文档不符
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先运行 `deliverkit doctor`，它会说明本机现在能交付哪些目标。
+        很多「构建失败」实际是环境门槛（Docker 未启动、平台不匹配、缺工具链），doctor 会直接指出来。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么
+      description: 你执行了什么命令，期望什么结果，实际得到什么结果
+      placeholder: |
+        执行：deliverkit pack-deb . --plan Forge.md
+        期望：产出 deb 并通过安装验证
+        实际：build_failed
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: deliverkit doctor 输出
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: error-result
+    attributes:
+      label: 错误结果
+      description: 请贴 `--json` 输出，或至少包含 error.code、error.summary 与 error.log_excerpt
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: DeliverKit 版本
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 系统与 Node 版本
+      placeholder: macOS 14 arm64 / Node 20.11
+    validations:
+      required: true
