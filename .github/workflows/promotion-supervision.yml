@@ -1,0 +1,72 @@
+name: promotion-supervision
+
+on:
+  schedule:
+    - cron: '30 1 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  discussions: read
+
+jobs:
+  weekly-report:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 1 * * 1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate promotion report
+        run: node scripts/weekly-promotion-report.mjs
+      - name: Commit report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add metrics/reports/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(metrics): weekly promotion report $(date -u +%F)"
+            git push
+          fi
+
+  community-sla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate community SLA report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/community-sla-check.mjs
+      - name: Upload SLA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: community-sla-${{ github.run_id }}
+          path: metrics/reports/community-sla-*.md
+
+  release-gate:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 1 * * 2'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run release gate
+        run: npm run release:check
+      - name: Report npm visibility
+        run: |
+          name=$(node -p "require('./package.json').name")
+          if npm view "$name" version; then
+            echo "Package $name is public."
+          else
+            echo "Package $name is UNKNOWN/BLOCKED: publish it before directory submissions."
+            exit 1
+          fi

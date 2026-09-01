@@ -1,0 +1,38 @@
+name: release-check
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run release:check
+      - name: Verify MCP Inspector dependency is available
+        run: npx --yes @modelcontextprotocol/inspector --help
+        continue-on-error: true
+      - name: Block tag releases until package is public
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./package.json').name")
+          if npm view "$name" version >/tmp/npm-version 2>/dev/null; then
+            version=$(cat /tmp/npm-version)
+            echo "npm already has $name@$version"
+          else
+            echo "Release blocked: npm package $name is not public yet. Publish it before using a release tag."
+            exit 1
+          fi

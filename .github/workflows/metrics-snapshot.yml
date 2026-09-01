@@ -55,7 +55,7 @@ jobs:
 
           gh api "repos/$REPO" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, open_issues: .open_issues_count}' > repo.json
 
-          if curl -sf "https://api.npmjs.org/downloads/point/last-week/deliverkit" > npm.json; then
+          if curl -sf "https://api.npmjs.org/downloads/point/last-week/deliverkit-mcp" > npm.json; then
             NPM=$(jq -c '.downloads' npm.json)
           else
             NPM=null
