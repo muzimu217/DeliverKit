@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const tempDir = mkdtempSync(path.join(os.tmpdir(), 'deliverkit-tarball-'));
 const fixtureDir = path.join(tempDir, 'fixture');
+const packDir = path.join(tempDir, 'pack');
 const packageJson = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
 let client;
 let tarballPath;
@@ -23,8 +24,12 @@ try {
   writeFileSync(path.join(fixtureDir, 'app.py'), 'print("tarball smoke")\n');
   writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify({ private: true }));
 
-  const tarballName = run('npm', ['pack', '--json', '--ignore-scripts'], projectRoot);
-  tarballPath = path.join(projectRoot, JSON.parse(tarballName)[0].filename);
+  // pack-destination + deterministic filename: npm pack stdout mixes lifecycle
+  // script output with the --json payload, so never parse it for the path.
+  mkdirSync(packDir, { recursive: true });
+  run('npm', ['pack', `--pack-destination=${packDir}`], projectRoot);
+  tarballPath = path.join(packDir, `${packageJson.name}-${packageJson.version}.tgz`);
+  assert.ok(existsSync(tarballPath), `expected tarball at ${tarballPath}`);
   run('npm', ['install', '--ignore-scripts', tarballPath], tempDir);
 
   const installedRoot = path.join(tempDir, 'node_modules', packageJson.name);
