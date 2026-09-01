@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="DeliverKit 百科：把跨生态打包、签名、公证、上架与真实验证变成可执行的知识。" />
+    <meta name="description" content="DeliverKit：给 Agent 的交付 MCP。生成 Forge.md，调用正确的平台 runner，产出可安装、可运行、可追溯的安装包。" />
     <meta name="theme-color" content="#11161d" />
     <link rel="icon" href="data:," />
-    <title>DeliverKit Encyclopedia | 交付百科</title>
+    <title>DeliverKit MCP | Agent 交付工具</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -16,39 +16,39 @@
   <body>
     <div class="announcement" role="status">
       <span class="pulse-dot" aria-hidden="true"></span>
-      <span>第一阶段公开预览 · 交付知识、签名边界与验证证据已整理</span>
-      <a href="#launch">加入发布名单 <i data-lucide="arrow-up-right"></i></a>
+      <span>DeliverKit MCP · 给 Agent 的契约式交付工具</span>
+      <a href="#quickstart">5 分钟跑通 Linux <i data-lucide="arrow-up-right"></i></a>
     </div>
 
     <header class="site-header">
       <a class="brand" href="#top" aria-label="DeliverKit Encyclopedia 首页">
         <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
-        <span>DELIVERKIT <em>/ ENCYCLOPEDIA</em></span>
+        <span>DELIVERKIT <em>/ MCP</em></span>
       </a>
       <button class="menu-button" type="button" aria-expanded="false" aria-controls="site-nav" title="打开导航">
         <i data-lucide="menu"></i><span class="sr-only">打开导航</span>
       </button>
       <nav id="site-nav" class="site-nav" aria-label="主导航">
-        <a href="#ecosystems">生态索引</a>
-        <a href="#credentials">签名指南</a>
-        <a href="#evidence">验证证据</a>
-        <a class="nav-cta" href="#launch">关注第一阶段 <i data-lucide="arrow-up-right"></i></a>
+        <a href="#quickstart">快速开始</a>
+        <a href="#tools">MCP 工具</a>
+        <a href="#ecosystems">平台前置</a>
+        <a class="nav-cta" href="#install">安装 MCP <i data-lucide="arrow-up-right"></i></a>
       </nav>
     </header>
 
     <main id="top">
       <section class="hero section-wrap">
         <div class="hero-copy">
-          <p class="eyebrow"><span>DK / 01</span> 交付不是打包按钮，是一条合法链路</p>
-          <h1>DeliverKit<br /><span>交付百科</span></h1>
-          <p class="hero-lede">给 Agent 和开发者看的全生态交付地图。查清楚该在哪构建、向谁申请签名、怎样注入凭据，以及什么证据才算真的交付。</p>
+          <p class="eyebrow"><span>DK / MCP</span> 让 Agent 把产品交付到正确的平台</p>
+          <h1>DeliverKit<br /><span>给 Agent 的交付 MCP</span></h1>
+          <p class="hero-lede">先生成可审查的 Forge.md，再在正确的 runner 上构建，最后用安装、运行、签名和 SHA256 证据证明交付完成。</p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#ecosystems">浏览生态索引 <i data-lucide="arrow-down"></i></a>
-            <a class="button button-quiet" href="#credentials">获取签名材料 <i data-lucide="key-round"></i></a>
+            <a class="button button-primary" href="#install">安装 MCP <i data-lucide="download"></i></a>
+            <a class="button button-quiet" href="#quickstart">5 分钟跑通 Linux <i data-lucide="arrow-down"></i></a>
           </div>
           <div class="hero-proof">
-            <div><strong>06</strong><span>生态知识包</span></div>
-            <div><strong>03</strong><span>Linux 真实矩阵</span></div>
+            <div><strong>11</strong><span>MCP 工具</span></div>
+            <div><strong>03</strong><span>Linux 已验证目标</span></div>
             <div><strong>01</strong><span>统一 Release Manifest</span></div>
           </div>
         </div>
@@ -71,6 +71,52 @@
             </div>
           </div>
           <div class="visual-footer"><span class="pulse-dot"></span><span>REAL VERIFICATION ENABLED</span><span class="mono">SHA256 / SIGNATURE / RUNTIME</span></div>
+        </div>
+      </section>
+
+      <section id="install" class="band band-light install-band">
+        <div class="section-wrap install-layout">
+          <div>
+            <p class="eyebrow dark"><span>INSTALL / 01</span> 一个包，两个入口</p>
+            <h2>先装 MCP，<br /><span>再让 Agent 交付。</span></h2>
+            <p>npm 包同时提供 MCP stdio server 与人工 CLI。MCP 给 Agent 调用，CLI 用来在终端自检和复现。</p>
+          </div>
+          <div class="install-panel">
+            <div class="code-label">MCP / STDIO</div>
+            <pre><code>{
+  "mcpServers": {
+    "deliverkit": {
+      "command": "npx",
+      "args": ["-y", "deliverkit-mcp"]
+    }
+  }
+}</code></pre>
+            <div class="install-actions"><code>npx -y deliverkit-mcp</code><button class="icon-button" type="button" data-copy="npx -y deliverkit-mcp" title="复制 MCP 安装命令"><i data-lucide="copy"></i><span class="sr-only">复制 MCP 安装命令</span></button></div>
+            <a class="text-link" href="https://www.npmjs.com/package/deliverkit-mcp" target="_blank" rel="noreferrer">查看 npm 包 <i data-lucide="arrow-up-right"></i></a>
+          </div>
+        </div>
+      </section>
+
+      <section id="quickstart" class="band band-ink quickstart-band">
+        <div class="section-wrap quickstart-layout">
+          <div>
+            <p class="eyebrow"><span>FIRST DELIVERY / 02</span> 从项目目录到真实产物</p>
+            <h2>10 分钟内，<br /><span>跑通第一个 Linux 包。</span></h2>
+            <p>Linux deb、rpm、AppImage 已有真实 fixture 与 CI 证据。其他生态由正确的 runner 完成，不在本机伪造。</p>
+          </div>
+          <pre class="quickstart-code"><code>npx -y --package=deliverkit-mcp -- deliverkit doctor
+npx -y --package=deliverkit-mcp -- deliverkit inspect .
+npx -y --package=deliverkit-mcp -- deliverkit plan . --goals deb
+# 审查 Forge.md
+npx -y --package=deliverkit-mcp -- deliverkit pack-deb . --plan Forge.md</code></pre>
+        </div>
+      </section>
+
+      <section id="tools" class="band band-paper tools-band">
+        <div class="section-wrap tools-layout">
+          <div class="section-heading"><div><p class="eyebrow dark"><span>TOOLS / 03</span> Skill 负责编排，MCP 负责执行</p><h2>默认工作流只有五步。</h2></div><p>不需要一开始理解 11 个工具。Skill 会按任务选择工具，复杂能力仍然可以逐个调用。</p></div>
+          <div class="tool-flow"><div><strong>01</strong><b>inspect</b><span>识别语言与入口</span></div><i data-lucide="arrow-right"></i><div><strong>02</strong><b>plan</b><span>生成 Forge.md</span></div><i data-lucide="arrow-right"></i><div><strong>03</strong><b>review</b><span>人审目标与风险</span></div><i data-lucide="arrow-right"></i><div><strong>04</strong><b>build</b><span>正确 runner 执行</span></div><i data-lucide="arrow-right"></i><div><strong>05</strong><b>manifest</b><span>汇总验证证据</span></div></div>
+          <a class="text-link" href="https://github.com/muzimu217/DeliverKit/blob/main/skills/deliverkit-mcp/SKILL.md" target="_blank" rel="noreferrer">阅读 Agent Skill <i data-lucide="arrow-up-right"></i></a>
         </div>
       </section>
 
@@ -120,8 +166,8 @@
 
       <section id="launch" class="band band-coral">
         <div class="section-wrap launch-layout">
-          <div><p class="eyebrow dark"><span>LAUNCH / 01</span> 第一阶段宣发</p><h2>让更多 Agent<br />知道怎么把东西送达。</h2></div>
-          <div class="launch-copy"><p>第一阶段公开预览聚焦三件事：真实 Linux 交付矩阵、跨平台签名边界、可复用的生态知识包。留下你的邮箱，下一批教程、案例和 CI 模板上线时通知你。</p><form id="launch-form" class="launch-form"><label class="sr-only" for="email">邮箱</label><input id="email" name="email" type="email" placeholder="your@email.com" required /><button class="button button-dark" type="submit">加入发布名单 <i data-lucide="send"></i></button></form><p id="form-note" class="form-note" role="status"></p><div class="share-row"><span>转发第一阶段</span><button type="button" class="icon-button" data-copy="https://github.com/muzimu217/DeliverKit" title="复制仓库链接"><i data-lucide="link-2"></i><span class="sr-only">复制仓库链接</span></button><a class="icon-button" href="https://github.com/muzimu217/DeliverKit" target="_blank" rel="noreferrer" title="打开 GitHub"><i data-lucide="code-2"></i><span class="sr-only">打开 GitHub</span></a></div></div>
+          <div><p class="eyebrow dark"><span>COMMUNITY / 06</span> 真实交付反馈</p><h2>跑通一次，<br />把证据带回来。</h2></div>
+          <div class="launch-copy"><p>当前没有默认遥测，也不会上传源码、私钥或项目路径。遇到问题请到 Discussions；成功交付后，欢迎匿名分享目标、产物和验证证据，帮助我们完成「10 个真实用户」目标。</p><div class="share-row"><a class="button button-dark" href="https://github.com/muzimu217/DeliverKit/discussions" target="_blank" rel="noreferrer">进入 Discussions <i data-lucide="messages-square"></i></a><button type="button" class="icon-button" data-copy="https://github.com/muzimu217/DeliverKit" title="复制仓库链接"><i data-lucide="link-2"></i><span class="sr-only">复制仓库链接</span></button><a class="icon-button" href="https://github.com/muzimu217/DeliverKit" target="_blank" rel="noreferrer" title="打开 GitHub"><i data-lucide="code-2"></i><span class="sr-only">打开 GitHub</span></a></div><p class="form-note">站点不收集邮箱；发布状态与成功案例以 GitHub 公开证据为准。</p></div>
         </div>
       </section>
     </main>

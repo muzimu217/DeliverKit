@@ -54,20 +54,6 @@ function setupFilters() {
   }));
 }
 
-function setupLaunchForm() {
-  const form = document.querySelector('#launch-form');
-  const note = document.querySelector('#form-note');
-  form?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const email = new FormData(form).get('email');
-    if (typeof email === 'string' && email.includes('@')) {
-      localStorage.setItem('deliverkit-launch-email', email);
-      note.textContent = '已登记本地预览邮箱。接入真实订阅服务前不会上传数据。';
-      form.reset();
-    }
-  });
-}
-
 function setupCopy() {
   document.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', async () => {
     const value = button.dataset.copy;
@@ -75,7 +61,7 @@ function setupCopy() {
       await navigator.clipboard.writeText(value);
       const label = button.querySelector('.sr-only');
       if (label) label.textContent = '已复制';
-      window.setTimeout(() => { if (label) label.textContent = '复制仓库链接'; }, 1600);
+      window.setTimeout(() => { if (label) label.textContent = button.title || '复制'; }, 1600);
     } catch { /* Clipboard is optional on static previews. */ }
   }));
 }
@@ -84,6 +70,5 @@ renderEcosystems();
 renderGuides();
 setupNavigation();
 setupFilters();
-setupLaunchForm();
 setupCopy();
 window.lucide?.createIcons();
