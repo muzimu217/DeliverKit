@@ -8,7 +8,7 @@
 - 入口：<https://registry.modelcontextprotocol.io> · 仓库 <https://github.com/modelcontextprotocol/registry>
 - 方式：publisher CLI（`make publisher` 构建）发布 server 元数据；要求安装方式公开（npm 包满足）
 - 建议先自验：`npx @modelcontextprotocol/inspector` 用 MCP Inspector 验证 stdio server 握手与工具列表，再提交
-- 发布信息：name `deliverkit`，npm 安装 `npx -y deliverkit-mcp`，仓库与站点链接照 README
+- 发布信息：name `deliverkit-mcp`，npm 安装 `npx -y deliverkit-mcp`，仓库与站点链接照 README
 
 ## 2. Smithery
 

@@ -1,6 +1,6 @@
 # 发布门禁（Launch Gates）
 
-> 状态基线（2026-08-22）：远端 main 停在 a268349（2026-08-17），本地有 29 个文件、734 行新增的多平台打包能力**未提交未推送**；npm registry 上不存在 `deliverkit` 包；本机 npm **未登录**。
+> 历史门禁基线（2026-08-22）：当时远端尚未包含多平台工作，npm registry 上不存在包。本文件保留历史记录；当前代码已推送到 v0.3.0，仍需在 npm registry 完成首次公开发布。
 > 结论：**当前不满足任何对外宣发条件**。以下 3 道门禁全部通过后，才按 matrix.md 节奏发布。
 
 ## Gate 1 — 推送多平台打包工作（用户执行）
@@ -19,7 +19,7 @@ git push origin main
 ```markdown
 [![CI](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml/badge.svg)](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![npm](https://img.shields.io/npm/v/deliverkit.svg)](https://www.npmjs.com/package/deliverkit)   <!-- Gate 2 通过后取消注释 -->
+[![npm](https://img.shields.io/npm/v/deliverkit-mcp.svg)](https://www.npmjs.com/package/deliverkit-mcp)
 ```
 
 ## Gate 2 — 发布 npm 包（用户执行，需要 npm 账号）
@@ -28,11 +28,11 @@ README 的接入指引是 `npx -y deliverkit-mcp`，**包不存在时该命令 4
 
 ```bash
 npm adduser                 # 本机当前 ENEEDAUTH，需先登录
-npm run verify              # lint + typecheck + build + test + 冒烟，全绿再发
-npm publish --access public # package.json files 已限定 dist/src/packaging/README/LICENSE
+npm run verify              # lint + typecheck + build + test + tarball 冒烟，全绿再发
+npm publish --access public # 发布 canonical 包 deliverkit-mcp
 ```
 
-发布后验证：`npx -y deliverkit-mcp --help` 在干净目录可跑。同时官方 MCP Registry 的「安装方式公开」前置条件即告满足。
+发布后在干净目录验证：`npx -y deliverkit-mcp` 启动 MCP stdio server；CLI 使用 `npx -y --package=deliverkit-mcp -- deliverkit doctor`。官方 MCP Registry 的「安装方式公开」前置条件至此满足。
 
 ## Gate 3 — Release v0.2.0（推送 Gate 1 后执行）
 
@@ -47,9 +47,11 @@ gh release create v0.2.0 --title "v0.2.0 — 多平台打包：Windows MSI / mac
 
 - ✅ GitHub topics 已添加（14 个，SEO / 话题页曝光）
 - ✅ Discussions 已开启（用户提问入口）
-- ✅ Release v0.1.0 已发布（标记 a268349 状态）
+- ✅ Release v0.1.0、v0.2.0 已发布；v0.3.0 代码已推送，等待 npm 首发后创建 release
 - ✅ `metrics-snapshot.yml` 流量采集 workflow 已上线并验证可运行
 - ✅ 2026-08-22 真实基线已回填（`metrics/traffic-2026-08-22.json`：views 24/2 uniques，clones 22/12 uniques）
+- ✅ tarball smoke 已通过：发布包包含 YAML 知识包、Forge 模板并可从干净目录启动 MCP
+- ✅ 独立 Agent Skill 已加入 `skills/deliverkit-mcp/SKILL.md`
 - ✅ 全渠道文案与目录提交材料已备好（见 `copy/`、`submissions/`）
 
 ## 后续动作（非阻断，但强烈建议）

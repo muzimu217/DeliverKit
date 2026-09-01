@@ -1,6 +1,6 @@
 # 真实用户数据采集方案
 
-> 回答一个直接的问题：**截至 2026-08-22，DeliverKit 没有任何用户数据采集**——代码无遥测（src/、site/ 全文检索无任何 analytics 埋点），站点邮箱名单只写浏览器 localStorage（README 已声明该边界），GitHub Insights 是唯一数据源且只回溯 14 天。
+> 历史基线（2026-08-22）：DeliverKit 没有产品遥测——代码无 analytics 埋点，站点不上传邮箱，GitHub Insights 是唯一数据源且只回溯 14 天。当前已增加自包含 tarball smoke 与周监督报告，但仍不启用默认遥测。
 > 以下方案分三层，原则：**先零成本自动化，再匿名统计，最后才考虑产品内 opt-in 遥测**（开源工具默认遥测是信任红线，不做）。
 
 ## 第 0 层 · 当日基线快照（2026-08-22，来源 GitHub API）
@@ -14,7 +14,7 @@
 | Referrer | 仅 github.com |
 | 热门路径 | /wiki（12 次）> / Overview（3 次） |
 | GitHub Pages 站点 | HTTP 200 在线 |
-| npm | `deliverkit` 不存在（404） |
+| npm | `deliverkit-mcp` 不存在（404） |
 | Releases / Topics / Discussions | 无 / 无（现已补） / 关闭（现已开启） |
 
 **解读**：项目处于「零外部触达」状态，任何渠道动作的效果都可以从这份基线干净地归因。
@@ -35,7 +35,7 @@ ls metrics/                                                      # 每周一个 
 ### npm 下载量（Gate 2 发布后自动可用）
 
 ```bash
-curl -s https://api.npmjs.org/downloads/point/last-week/deliverkit | jq .downloads
+curl -s https://api.npmjs.org/downloads/point/last-week/deliverkit-mcp | jq .downloads
 ```
 
 不依赖任何账号，写进每周复盘即可。

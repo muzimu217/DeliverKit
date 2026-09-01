@@ -33,8 +33,8 @@
 
 | # | 渠道 | 受众 | 资产 | 动作 | 时机 | 状态 |
 |---|---|---|---|---|---|---|
-| 1 | GitHub 仓库门面 | 全部 | topics、badge、README | 已加 topics、开启 Discussions；badge 见 gates.md | T0 | ✅ 部分（badge 待 push） |
-| 2 | GitHub Release v0.1.0 | 全部 | release notes | `gh release create` | T0 | ✅ 已建 |
+| 1 | GitHub 仓库门面 | 全部 | topics、badge、README | 已加 topics、开启 Discussions；badge 见 gates.md | T0 | ✅ READY（topics、Discussions、README badge、Skill 入口已落库） |
+| 2 | GitHub Release | 全部 | release notes | v0.1.0 / v0.2.0 已建；v0.3.0 待 npm 首发 | T0 | ✅ 代码就绪 / ⏸ npm 门禁 |
 | 3 | awesome-mcp-servers | MCP 开发者 | 提交条目 + PR | fork → PR（材料已备） | T0 | ⏸ 待 gates 通过 |
 | 4 | 官方 MCP Registry | MCP 生态 | publisher CLI 发布 | 安装方式公开后发布 | T0 | ⏸ 依赖 npm publish |
 | 5 | Smithery / Glama | MCP 用户 | smithery.yaml / 提交表单 | 上架 | T0 | ⏸ 待 gates 通过 |
