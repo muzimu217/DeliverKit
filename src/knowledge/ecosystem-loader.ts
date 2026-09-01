@@ -20,8 +20,9 @@ import {
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
 const ECOSYSTEMS_DIR_CANDIDATES = [
+  // npm tarball 的自包含运行时资产（由 build:release 复制）。
   path.resolve(moduleDir, 'ecosystems'),
-  // 编译产物 dist/knowledge → 仓库 src/knowledge/ecosystems（tsc 不复制 .yaml）
+  // 源码仓库开发态 fallback。
   path.resolve(moduleDir, '../../src/knowledge/ecosystems'),
   path.resolve(process.cwd(), 'src/knowledge/ecosystems'),
 ];

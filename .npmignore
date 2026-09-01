@@ -1,4 +1,6 @@
-# Ecosystem and legacy adapter knowledge is loaded from the checked-out source
-# tree in CI/runtime. Keep it versioned in Git but out of the npm tarball.
-**/*.yaml
-**/*.yml
+# Keep source-only files out of the tarball. Runtime knowledge is copied to dist/.
+src/knowledge/
+src/packaging/
+tests/
+docs/
+.github/

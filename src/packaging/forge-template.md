@@ -21,7 +21,7 @@
 {{risks_section}}
 
 ## Commands
-- Inspect: deliverkit inspect .
+- Inspect: npx -y --package=deliverkit-mcp -- deliverkit inspect .
 - Verify: {{verify_command}}
 
 ## Results

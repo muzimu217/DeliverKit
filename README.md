@@ -12,10 +12,10 @@ DeliverKit 不是一个"把 Linux 软件塞进 Windows 跑"的兼容层，而是
 ## 30 秒上手
 
 ```bash
-npx -y deliverkit doctor            # 先看本机现在能交付哪些目标，缺什么、怎么补
-npx -y deliverkit inspect .         # 识别项目语言与入口
-npx -y deliverkit plan . --goals deb,rpm   # 生成可评审的 Forge.md 交付契约
-npx -y deliverkit pack-deb . --plan Forge.md   # 构建 + 干净容器安装运行验证（需 Docker）
+npx -y --package=deliverkit-mcp -- deliverkit doctor            # 先看本机现在能交付哪些目标，缺什么、怎么补
+npx -y --package=deliverkit-mcp -- deliverkit inspect .         # 识别项目语言与入口
+npx -y --package=deliverkit-mcp -- deliverkit plan . --goals deb,rpm   # 生成可评审的 Forge.md 交付契约
+npx -y --package=deliverkit-mcp -- deliverkit pack-deb . --plan Forge.md   # 构建 + 干净容器安装运行验证（需 Docker）
 ```
 
 `doctor` 会把「这台机器现在能产出哪些包」摊开讲清楚——不能产出的目标不是缺陷，而是各生态用签名和官方工具链锁定了产出位置，DeliverKit 的做法是把它们规划到正确的 runner 上，而不是在本机伪造产物。
@@ -67,15 +67,15 @@ Ubuntu 22.04 上重复该 matrix 并上传 JSON 证据，其他 Linux 主机复�
 
 ## 接入
 
-### 交付百科（第一阶段公开预览）
+### 站点（MCP 转化入口）
 
-仓库新增了可直接部署的静态百科站点：[site/index.html](site/index.html)。它把生态知识包、个人签名材料获取路径、CI secret 注入边界和真实验证证据整理成面向开发者与 Agent 的公开入口。
+仓库附带可直接部署的静态站点：[site/index.html](site/index.html)。首屏是 MCP 安装命令与「10 分钟跑通 Linux」首次任务，生态知识与平台前置指南作为次级入口，Agent Skill 见 [skills/deliverkit-mcp/SKILL.md](skills/deliverkit-mcp/SKILL.md)。
 
 ```bash
 npx serve site
 ```
 
-站点不包含任何账号、证书或私钥；邮箱发布名单目前只写入浏览器本地存储，正式宣发接入订阅服务前不会上传数据。部署与内容边界见 [site/README.md](site/README.md)。
+站点不收集任何用户数据（无表单、无统计脚本、无 cookie），也不包含任何账号、证书或私钥；部署与内容边界见 [site/README.md](site/README.md)。
 
 MCP（stdio）：
 

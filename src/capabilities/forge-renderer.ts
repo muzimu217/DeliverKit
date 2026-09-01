@@ -11,7 +11,9 @@ import { renderForgeContract, type ForgeContract } from './forge-contract.js';
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATE_CANDIDATES = [
+  // npm tarball 的自包含运行时模板（由 build:release 复制）。
   path.resolve(currentDir, '../packaging/forge-template.md'),
+  // 源码仓库开发态 fallback。
   path.resolve(currentDir, '../../src/packaging/forge-template.md'),
   path.resolve(process.cwd(), 'src/packaging/forge-template.md'),
 ];
