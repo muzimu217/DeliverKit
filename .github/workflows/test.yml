@@ -23,8 +23,14 @@ jobs:
       - run: npm run verify
 
   linux-matrix:
-    name: Linux packaging matrix
-    runs-on: ubuntu-22.04
+    name: Linux packaging matrix (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # 跨主机复核：同一套工具链在不同 Ubuntu runner 上都必须能构建并验证
+        # （目标包本身始终在 ubuntu:22.04 验证容器里安装运行，与 runner 无关）。
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,7 +47,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: deliverkit-linux-matrix-evidence
+          name: deliverkit-linux-matrix-evidence-${{ matrix.os }}
           path: |
             .deliverkit/linux-matrix-result.json
             .deliverkit/linux-matrix-manifests/*.json
