@@ -310,7 +310,7 @@ function readPackageJson(sourceDir: string): { scripts?: { start?: string } } | 
     const parsed: unknown = JSON.parse(fs.readFileSync(path.join(sourceDir, 'package.json'), 'utf8'));
     if (typeof parsed !== 'object' || parsed === null) {return null;}
     const scripts = (parsed as { scripts?: unknown }).scripts;
-    return typeof scripts === 'object' && scripts !== null ? parsed as { scripts?: { start?: string } } : null;
+    return typeof scripts === 'object' && scripts !== null ? parsed : null;
   } catch {
     return null;
   }

@@ -28,6 +28,7 @@
     "test:tarball": "node tests/runtime/npm-tarball-smoke.mjs",
     "release:check": "npm run build:release && node scripts/release-check.mjs && npm pack --dry-run",
     "verify": "npm run lint && npm run typecheck && npm run build:release && npm test && node tests/runtime/compiled-mcp-smoke.mjs && npm run test:tarball",
+    "verify:artifact": "npm run build:release && node tests/runtime/compiled-mcp-smoke.mjs && npm run test:tarball",
     "prepare": "npm run build:release"
   },
   "keywords": [
@@ -65,13 +66,13 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "@typescript-eslint/eslint-plugin": "^6.19.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "@vitest/coverage-v8": "^1.2.0",
-    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^8.69.0",
+    "@typescript-eslint/parser": "^8.69.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^8.57.1",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3",
-    "vitest": "^1.2.0"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=18.0.0"

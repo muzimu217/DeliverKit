@@ -11,7 +11,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        # dev 工具链（vitest 4 / eslint 8）要求 Node ≥20。
+        node-version: [20.x, 22.x]
     steps:
       - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node-version }}
@@ -21,6 +22,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+
+  # engines 承诺 >=18 的是发布产物，不是 dev 工具链：
+  # Node 18 上验证 tarball 安装、MCP 握手与运行时资产，不跑 vitest/eslint。
+  artifact-node-18:
+    name: published artifact on Node 18
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: npm
+      - run: npm ci
+      - run: npm run verify:artifact
 
   linux-matrix:
     name: Linux packaging matrix (${{ matrix.os }})

@@ -188,7 +188,7 @@ function dockerBuildArgs(sourceDir: string, outputDir: string, script: string): 
 }
 
 function dockerVerifyArgs(outputDir: string, artifactName: string, packageName: string, runtimePackages: string[]): string[] {
-  const script = ['set -eu', `dnf -y install ${rpmRuntimePackages({ runtimePackages } as LinuxLauncher).join(' ')}`, 'command -v timeout', `rpm -Uvh --nosignature /packages/${artifactName}`, `test -x /usr/bin/${packageName}`, 'set +e', `timeout 5s /usr/bin/${packageName}`, 'status=$?', 'set -e', 'test "$status" -eq 0 -o "$status" -eq 124'].join('\n');
+  const script = ['set -eu', `dnf -y install ${rpmRuntimePackages({ runtimePackages }).join(' ')}`, 'command -v timeout', `rpm -Uvh --nosignature /packages/${artifactName}`, `test -x /usr/bin/${packageName}`, 'set +e', `timeout 5s /usr/bin/${packageName}`, 'status=$?', 'set -e', 'test "$status" -eq 0 -o "$status" -eq 124'].join('\n');
   return ['run', '--rm', '--mount', `type=bind,src=${path.resolve(outputDir)},dst=/packages,readonly`, IMAGE, 'bash', '-lc', script];
 }
 
