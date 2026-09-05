@@ -10,7 +10,9 @@ import { describeCommandFailure, logTail, runCommandWithLog } from './utils/comm
 import { amd64EmulationWarning, normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 
-const BUILD_IMAGE = 'appimagecrafters/appimage-builder:latest';
+// Pin 2026-09-05: appimage-builder 1.1.0（linux/amd64）。同一契约必须产出同一结果，
+// 不跟随 :latest 漂移；升级时先在 CI linux-matrix 复核再改这里。
+const BUILD_IMAGE = 'appimagecrafters/appimage-builder:1.1.0';
 const VERIFY_IMAGE = 'ubuntu:22.04';
 const BUILD_TIMEOUT_MS = 15 * 60_000;
 const VERIFY_TIMEOUT_MS = 5 * 60_000;
