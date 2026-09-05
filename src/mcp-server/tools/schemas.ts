@@ -88,9 +88,20 @@ const DeliverKitResultSchema = z.object({
 
 // ========== 工具特定 Schema ==========
 
+// 手动指定语言/入口：自动识别失败或识别错误时，Agent 可直接继续而不是死路。
+const LanguageOverrideSchema = z
+  .enum(['python', 'javascript', 'typescript', 'go', 'arkts'])
+  .describe('手动指定项目语言（自动识别失败或识别错误时使用）');
+const EntrypointsOverrideSchema = z
+  .array(z.string())
+  .min(1)
+  .describe('手动指定入口列表：项目内相对路径（文件须存在）或 npm start');
+
 // inspect_project
 export const InspectProjectInputSchema = z.object({
   source_dir: SourceDirSchema,
+  language: LanguageOverrideSchema.optional(),
+  entrypoints: EntrypointsOverrideSchema.optional(),
 });
 
 export const InspectProjectOutputSchema = DeliverKitResultSchema.extend({
@@ -122,6 +133,8 @@ export const GeneratePackagingPlanInputSchema = z.object({
   source_dir: SourceDirSchema,
   goals: z.array(z.string()).describe('目标产物列表（如 ["deb", "rpm"] 或 ["windows-msi"]）'),
   target_environment: z.string().optional().describe('目标环境（如 ubuntu-22.04、windows、macos、harmonyos）'),
+  language: LanguageOverrideSchema.optional(),
+  entrypoints: EntrypointsOverrideSchema.optional(),
 });
 
 export const GeneratePackagingPlanOutputSchema = DeliverKitResultSchema.extend({

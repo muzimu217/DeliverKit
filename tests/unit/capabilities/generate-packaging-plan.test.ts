@@ -157,3 +157,34 @@ describe('generate_packaging_plan（知识包驱动）', () => {
     expect(result.error?.code).toBe('path_not_found');
   });
 });
+
+describe('generate_packaging_plan 手动指定语言与入口', () => {
+  it('未识别项目用手动指定生成契约，语言与入口写入机器契约', async () => {
+    const dir = makeProject('manual-contract');
+    fs.writeFileSync(path.join(dir, 'wsgi.server'), 'print("hi")\n');
+
+    const result = await generatePackagingPlan(dir, ['deb'], undefined, {
+      language: 'python',
+      entrypoints: ['wsgi.server'],
+    });
+
+    expect(result.status).toBe('success');
+    const content = fs.readFileSync(result.plan_path!, 'utf-8');
+    const encoded = content.match(/deliverkit-contract:([A-Za-z0-9_-]+)/)?.[1];
+    expect(encoded).toBeTruthy();
+    const contract = JSON.parse(Buffer.from(encoded!, 'base64url').toString('utf-8'));
+    expect(contract.project.language).toBe('Python');
+    expect(contract.project.entrypoints).toContain('wsgi.server');
+  });
+
+  it('手动指定的语言无效时不写 Forge.md', async () => {
+    const dir = makeProject('manual-badlang');
+    fs.writeFileSync(path.join(dir, 'a.file'), '');
+
+    const result = await generatePackagingPlan(dir, ['deb'], undefined, { language: 'rust' });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('invalid_input');
+    expect(fs.existsSync(path.join(dir, 'Forge.md'))).toBe(false);
+  });
+});

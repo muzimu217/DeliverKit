@@ -6,7 +6,7 @@
  */
 
 import * as path from 'node:path';
-import { inspectProject } from './inspect-project.js';
+import { inspectProject, type InspectOverrides } from './inspect-project.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 import type { GeneratePackagingPlanOutput, DeliveryTargetSummary } from './types.js';
 import {
@@ -27,7 +27,8 @@ import { writePlan } from './plan-writer.js';
 export async function generatePackagingPlan(
   sourceDir: string,
   goals: string[],
-  targetEnvironment?: string
+  targetEnvironment?: string,
+  overrides?: InspectOverrides
 ): Promise<GeneratePackagingPlanOutput> {
   try {
     assertSourceDir(sourceDir);
@@ -45,7 +46,7 @@ export async function generatePackagingPlan(
     throw error;
   }
 
-  const inspection = await inspectProject(sourceDir);
+  const inspection = await inspectProject(sourceDir, overrides);
   if (inspection.status === 'failed') {
     return { status: 'failed', error: inspection.error };
   }

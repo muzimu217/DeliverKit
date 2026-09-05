@@ -80,13 +80,20 @@ function dispatch(
 ): ForgeKitResult | Promise<ForgeKitResult> {
   switch (name) {
     case 'inspect_project':
-      return inspectProject(input.source_dir as string);
+      return inspectProject(input.source_dir as string, {
+        language: input.language as string | undefined,
+        entrypoints: input.entrypoints as string[] | undefined,
+      });
 
     case 'generate_packaging_plan':
       return generatePackagingPlan(
         input.source_dir as string,
         input.goals as string[],
-        input.target_environment as string | undefined
+        input.target_environment as string | undefined,
+        {
+          language: input.language as string | undefined,
+          entrypoints: input.entrypoints as string[] | undefined,
+        }
       );
 
     case 'get_ecosystem_knowledge':

@@ -158,3 +158,104 @@ describe('M2: inspect_project', () => {
     expect(result.error?.code).toBe('invalid_path');
   });
 });
+
+describe('inspect_project 手动指定语言与入口', () => {
+  it('未识别语言的项目可通过 language/entrypoints 继续', async () => {
+    const dir = path.join(tmpDir, 'manual-ruby');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'server.rb'), 'puts "hi"');
+
+    const result = await inspectProject(dir, { language: 'python', entrypoints: ['server.rb'] });
+
+    expect(result.status).toBe('success');
+    expect(result.language).toBe('Python');
+    expect(result.entrypoints).toEqual(['server.rb']);
+    expect(result.decision_basis?.build_method).toContain('手动指定为 Python 项目');
+  });
+
+  it('language 大小写不敏感', async () => {
+    const dir = path.join(tmpDir, 'manual-upper');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'run.sh'), '');
+
+    const result = await inspectProject(dir, { language: 'PYTHON' });
+
+    expect(result.status).toBe('success');
+    expect(result.language).toBe('Python');
+  });
+
+  it('手动指定的语言与自动识别冲突时按手动值执行并标注', async () => {
+    const dir = path.join(tmpDir, 'manual-conflict');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"demo"}');
+
+    const result = await inspectProject(dir, { language: 'go' });
+
+    expect(result.status).toBe('success');
+    expect(result.language).toBe('Go');
+    expect(result.decision_basis?.build_method).toContain('自动识别为 JavaScript，已忽略');
+  });
+
+  it('不支持的语言返回 invalid_input 并列出支持值', async () => {
+    const dir = path.join(tmpDir, 'manual-badlang');
+    fs.mkdirSync(dir, { recursive: true });
+
+    const result = await inspectProject(dir, { language: 'ruby' });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('invalid_input');
+    expect(result.error?.suggested_fix).toContain('python');
+    expect(result.error?.suggested_fix).toContain('arkts');
+  });
+
+  it('入口文件不存在返回 invalid_input', async () => {
+    const dir = path.join(tmpDir, 'manual-noentry');
+    fs.mkdirSync(dir, { recursive: true });
+
+    const result = await inspectProject(dir, { language: 'python', entrypoints: ['missing.py'] });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('invalid_input');
+    expect(result.error?.summary).toContain('missing.py');
+  });
+
+  it('绝对路径或含 .. 的入口被拒绝', async () => {
+    const dir = path.join(tmpDir, 'manual-unsafe');
+    fs.mkdirSync(dir, { recursive: true });
+
+    const absolute = await inspectProject(dir, { language: 'python', entrypoints: [path.join(dir, 'app.py')] });
+    expect(absolute.status).toBe('failed');
+    expect(absolute.error?.code).toBe('invalid_input');
+
+    const traversal = await inspectProject(dir, { language: 'python', entrypoints: ['../app.py'] });
+    expect(traversal.status).toBe('failed');
+    expect(traversal.error?.code).toBe('invalid_input');
+  });
+
+  it('npm start 作为脚本型入口放行', async () => {
+    const dir = path.join(tmpDir, 'manual-npmstart');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"demo"}');
+
+    const result = await inspectProject(dir, { language: 'typescript', entrypoints: ['npm start'] });
+
+    expect(result.status).toBe('success');
+    expect(result.entrypoints).toEqual(['npm start']);
+  });
+
+  it('带 overrides 的调用绕过缓存且不污染缓存', async () => {
+    const dir = path.join(tmpDir, 'manual-cache');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"demo"}');
+    fs.writeFileSync(path.join(dir, 'main.go'), 'package main');
+
+    const auto = await inspectProject(dir);
+    expect(auto.language).toBe('JavaScript');
+
+    const manual = await inspectProject(dir, { language: 'go' });
+    expect(manual.language).toBe('Go');
+
+    const again = await inspectProject(dir);
+    expect(again.language).toBe('JavaScript');
+  });
+});

@@ -31,6 +31,8 @@ interface JsonOption {
 interface PlanCliOptions extends JsonOption {
   goals?: string;
   env?: string;
+  language?: string;
+  entry?: string[];
 }
 
 interface PackCliOptions extends JsonOption {
@@ -74,9 +76,11 @@ program
   .command('inspect')
   .description('识别项目语言、入口与已有打包配置，给出跨生态交付目标建议')
   .argument('[source]', 'project directory', '.')
+  .option('--language <lang>', '手动指定语言（python/javascript/typescript/go/arkts），识别失败时使用')
+  .option('--entry <path>', '手动指定入口，可重复；文件须存在于项目内，脚本型入口可用 npm start', (value: string, previous: string[]) => [...previous, value], [])
   .option('--json', '输出结构化 JSON')
-  .action(async (source: string, options: JsonOption) => {
-    finish(await inspectProject(source), options);
+  .action(async (source: string, options: PlanCliOptions) => {
+    finish(await inspectProject(source, { language: options.language, entrypoints: options.entry }), options);
   });
 
 program
@@ -85,6 +89,8 @@ program
   .argument('[source]', 'project directory', '.')
   .requiredOption('--goals <list>', '目标产物列表，逗号分隔，例如 deb,rpm 或 windows-msi')
   .option('--env <environment>', '目标环境，例如 ubuntu-22.04、windows、macos、harmonyos')
+  .option('--language <lang>', '手动指定语言（python/javascript/typescript/go/arkts），识别失败时使用')
+  .option('--entry <path>', '手动指定入口，可重复；文件须存在于项目内，脚本型入口可用 npm start', (value: string, previous: string[]) => [...previous, value], [])
   .option('--json', '输出结构化 JSON')
   .action(async (source: string, options: PlanCliOptions) => {
     const goals = (options.goals ?? '')
@@ -94,7 +100,13 @@ program
     if (goals.length === 0) {
       program.error('--goals 不能为空');
     }
-    finish(await generatePackagingPlan(source, goals, options.env), options);
+    finish(
+      await generatePackagingPlan(source, goals, options.env, {
+        language: options.language,
+        entrypoints: options.entry,
+      }),
+      options
+    );
   });
 
 program

@@ -141,3 +141,48 @@ describe('Executor - 未预期异常兜底', () => {
     expect(result.error?.log_excerpt).toContain('boom');
   });
 });
+
+describe('Executor - 手动指定语言与入口', () => {
+  it('inspect_project 透传 language/entrypoints', async () => {
+    const dir = path.join(tmpDir, 'override-inspect');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'server.rb'), 'puts "hi"');
+
+    const result = await executeTool('inspect_project', {
+      source_dir: dir,
+      language: 'python',
+      entrypoints: ['server.rb'],
+    });
+
+    expect(result.status).toBe('success');
+    expect((result as { language?: string }).language).toBe('Python');
+    expect((result as { entrypoints?: string[] }).entrypoints).toEqual(['server.rb']);
+  });
+
+  it('generate_packaging_plan 透传 language/entrypoints 到契约', async () => {
+    const dir = path.join(tmpDir, 'override-plan');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'wsgi.server'), '');
+
+    const result = await executeTool('generate_packaging_plan', {
+      source_dir: dir,
+      goals: ['deb'],
+      language: 'python',
+      entrypoints: ['wsgi.server'],
+    });
+
+    expect(result.status).toBe('success');
+    const content = fs.readFileSync(path.join(dir, 'Forge.md'), 'utf-8');
+    const encoded = content.match(/deliverkit-contract:([A-Za-z0-9_-]+)/)?.[1];
+    const contract = JSON.parse(Buffer.from(encoded!, 'base64url').toString('utf-8'));
+    expect(contract.project.language).toBe('Python');
+    expect(contract.project.entrypoints).toContain('wsgi.server');
+  });
+
+  it('language 枚举外的值被 schema 拒绝', async () => {
+    const result = await executeTool('inspect_project', { source_dir: tmpDir, language: 'cobol' });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('invalid_input');
+  });
+});

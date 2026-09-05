@@ -23,18 +23,48 @@ import { parseJson5 } from './utils/json5.js';
 import type { InspectProjectOutput, ExistingPackaging } from './types.js';
 import { detectRuntimeHints } from './utils/runtime-hints.js';
 
-export async function inspectProject(sourceDir: string): Promise<InspectProjectOutput> {
-  // 1. 尝试从缓存获取
-  const cached = globalCache.get(sourceDir);
-  if (cached) {
-    return cached;
+/** 自动识别失败或识别错误时，调用方可手动指定语言与入口继续流程。 */
+export interface InspectOverrides {
+  language?: string;
+  entrypoints?: string[];
+}
+
+const CANONICAL_LANGUAGES: Record<string, string> = {
+  python: 'Python',
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  go: 'Go',
+  arkts: 'ArkTS',
+};
+
+export const SUPPORTED_LANGUAGE_INPUTS = Object.keys(CANONICAL_LANGUAGES);
+
+/** 统一大小写与别名：'python' → 'Python'；未知值原样返回 undefined。 */
+export function normalizeLanguageInput(value: string): string | undefined {
+  return CANONICAL_LANGUAGES[value.trim().toLowerCase()];
+}
+
+export function hasOverrides(overrides?: InspectOverrides): boolean {
+  return Boolean(
+    overrides && ((overrides.language && overrides.language.length > 0) || (overrides.entrypoints && overrides.entrypoints.length > 0))
+  );
+}
+
+export async function inspectProject(
+  sourceDir: string,
+  overrides?: InspectOverrides
+): Promise<InspectProjectOutput> {
+  // 缓存键只含 sourceDir；带手动覆盖时不读也不写，避免覆盖结果串味。
+  if (!hasOverrides(overrides)) {
+    const cached = globalCache.get(sourceDir);
+    if (cached) {
+      return cached;
+    }
   }
 
-  // 2. 执行项目分析
-  const result = inspectProjectImpl(sourceDir);
+  const result = inspectProjectImpl(sourceDir, overrides);
 
-  // 3. 成功时缓存结果
-  if (result.status === 'success') {
+  if (result.status === 'success' && !hasOverrides(overrides)) {
     globalCache.set(sourceDir, result);
   }
 
@@ -44,7 +74,7 @@ export async function inspectProject(sourceDir: string): Promise<InspectProjectO
 /**
  * 项目分析实现（内部函数）
  */
-function inspectProjectImpl(sourceDir: string): InspectProjectOutput {
+function inspectProjectImpl(sourceDir: string, overrides?: InspectOverrides): InspectProjectOutput {
   // 1. 校验源目录
   try {
     assertSourceDir(sourceDir);
@@ -62,14 +92,48 @@ function inspectProjectImpl(sourceDir: string): InspectProjectOutput {
     throw e;
   }
 
+  // 2. 语言：手动指定优先；未指定或无法识别时走自动检测
+  const manualLanguage = overrides?.language ? normalizeLanguageInput(overrides.language) : undefined;
+  if (overrides?.language && !manualLanguage) {
+    return {
+      status: 'failed',
+      error: {
+        code: 'invalid_input',
+        summary: `不支持的语言: ${overrides.language}`,
+        suggested_fix: `language 支持 ${SUPPORTED_LANGUAGE_INPUTS.join(' / ')}（大小写不敏感）`,
+      },
+    };
+  }
+
   // 2. 识别已有打包配置
   const existingPackaging = detectExistingPackaging(sourceDir);
 
   // 3. 识别语言
-  const { language, runtime } = detectLanguage(sourceDir, existingPackaging);
+  const autoDetected = detectLanguage(sourceDir, existingPackaging);
+  const language = manualLanguage ?? autoDetected.language;
+  const runtime = manualLanguage ? runtimeForLanguage(manualLanguage, sourceDir) : autoDetected.runtime;
 
-  // 4. 识别入口
-  const entrypoints = detectEntrypoints(sourceDir, language);
+  // 4. 识别入口：手动指定的入口先校验，再进入结果
+  let entrypoints: string[];
+  if (overrides?.entrypoints && overrides.entrypoints.length > 0) {
+    const invalid = overrides.entrypoints.find((entry) => !isAcceptableEntrypoint(entry, sourceDir));
+    if (invalid) {
+      return {
+        status: 'failed',
+        error: {
+          code: 'invalid_input',
+          summary: `入口不可用: ${invalid}`,
+          suggested_fix:
+            invalid === 'npm start' || isSafeRelativePath(invalid)
+              ? '入口必须是项目内的相对路径且文件存在（npm start 除外）；请检查路径拼写'
+              : '入口必须是项目内的相对路径（不能是绝对路径或包含 ..）；脚本型入口可使用 npm start',
+        },
+      };
+    }
+    entrypoints = [...overrides.entrypoints];
+  } else {
+    entrypoints = detectEntrypoints(sourceDir, language);
+  }
 
   // 5. 生成推荐
   const recommendations = generateRecommendations(language, existingPackaging, entrypoints);
@@ -77,7 +141,11 @@ function inspectProjectImpl(sourceDir: string): InspectProjectOutput {
 
   // 6. 决策依据
   const decisionBasis = {
-    build_method: language ? `识别为 ${language} 项目` : '未识别出已知语言（需用户确认）',
+    build_method: manualLanguage
+      ? `手动指定为 ${language} 项目${autoDetected.language && autoDetected.language !== language ? `（自动识别为 ${autoDetected.language}，已忽略）` : ''}`
+      : language
+        ? `识别为 ${language} 项目`
+        : '未识别出已知语言（需手动指定）',
     compatibility_notes: runtime ? [`${language} 运行时: ${runtime}`] : [],
   };
 
@@ -104,6 +172,42 @@ function inspectProjectImpl(sourceDir: string): InspectProjectOutput {
     warnings,
     decision_basis: decisionBasis,
   };
+}
+
+/** 手动指定语言时仍尽量推导运行时版本，保持与自动识别同等信息量。 */
+function runtimeForLanguage(language: string, sourceDir: string): string {
+  switch (language) {
+    case 'Python':
+      return detectPythonRuntime(sourceDir);
+    case 'ArkTS':
+      return detectHarmonyRuntime(sourceDir);
+    case 'Go':
+      return 'Go';
+    default:
+      return 'Node.js';
+  }
+}
+
+/**
+ * 入口校验：'npm start' 原样放行；其余必须是安全相对路径且文件存在。
+ * 构建阶段（resolveLinuxLauncher）还会再校验一次，这里把错误前置到规划阶段。
+ */
+function isAcceptableEntrypoint(entry: string, sourceDir: string): boolean {
+  if (entry === 'npm start') {
+    return true;
+  }
+  if (!isSafeRelativePath(entry)) {
+    return false;
+  }
+  return pathExists(path.join(sourceDir, entry));
+}
+
+function isSafeRelativePath(entry: string): boolean {
+  if (entry.length === 0 || path.isAbsolute(entry)) {
+    return false;
+  }
+  const parts = entry.split(/[\\/]/);
+  return !parts.some((part) => part === '..');
 }
 
 // ========== 已有打包配置检测 ==========
