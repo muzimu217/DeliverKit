@@ -36,11 +36,11 @@ npx -y --package=deliverkit-mcp -- deliverkit pack-deb . --plan Forge.md   # 构
 
 所以 DeliverKit **不假装一台机器产出全生态**——它懂得"每个安装包该在哪、用什么合法方式产出、怎么验证它真的能装能跑"，并指挥 AI 在正确的环境（本地 / CI 对应平台 runner / 云构建）里完成。这就绕开了各生态的硬约束，而不是去翻墙。
 
-## 当前能力（v0.2.0 · 契约层 + 多平台工具 + Linux 三目标闭环）
+## 当前能力（v0.3.0 · 可安装 MCP + Agent Skill + Linux 三目标闭环）
 
 DeliverKit 通过 MCP（stdio）暴露规划、编排与构建工具：
 
-- **`inspect_project`** —— 识别项目语言、入口与已有打包配置，给出跨生态交付目标建议。
+- **`inspect_project`** —— 识别项目语言、入口与已有打包配置，给出跨生态交付目标建议。识别失败或识别错误时，可传入 `language`（python/javascript/typescript/go/arkts）与 `entrypoints` 手动指定，结果直接进入 Forge.md 契约，不再死路。
 - **`generate_packaging_plan`** —— 生成一份可评审的 `Forge.md` 交付契约（目标生态 / 产物 / 决策依据 / 风险）。
 - **`get_ecosystem_knowledge`** —— 读取已注册生态的结构化打包、签名、分发与验证规则。
 - **`pack_deb`** —— 按 `Forge.md` 在隔离 Ubuntu 容器中构建 `.deb`，并在新容器执行安装和运行验证。
@@ -56,14 +56,20 @@ DeliverKit 通过 MCP（stdio）暴露规划、编排与构建工具：
 Python Flask、TypeScript 和 Go 标准库 HTTP 三个真实 fixture 复现同一份多目标
 `Forge.md`，完成 deb/rpm/AppImage 的构建、安装与运行验证，并生成 `verified`
 状态的 Release Manifest；仓库 CI 也会在
-Ubuntu 22.04 上重复该 matrix 并上传 JSON 证据，其他 Linux 主机复核仍建议继续执行。
+Ubuntu 22.04 与 24.04 runner 上重复该 matrix 并上传 JSON 证据，其他 Linux 主机复核仍建议继续执行。
 
 所有平台构建类工具都遵守两条铁律：
 
 1. **计划先行**（Plan-before-build）：无 `Forge.md` 契约不构建。
 2. **真实验证**（Real verification）：不只看退出码，要验证产物装得上、跑得起来、签名有效。
 
-失败时的可行动性也被当作契约的一部分：Docker 不可用会区分「没装 / 守护进程没起 / 权限不足 / 探测超时」并给出各自的修复动作；构建超时不会伪装成普通构建失败；每次失败都带日志尾部片段与下一步命令。
+失败时的可行动性也被当作契约的一部分：Docker 不可用会区分「没装 / 守护进程没起 / 权限不足 / 探测超时」并给出各自的修复动作；构建超时不会伪装成普通构建失败；每次失败都带日志尾部片段与下一步命令；`Forge.md` 的 `source_dir` 比对容忍符号链接差异（如 macOS 的 `/tmp` 与 `/private/tmp`），真不一致时报错会列出两个路径各自的值。
+
+CLI 侧同样支持手动指定（可重复 `--entry`）：
+
+```bash
+npx -y --package=deliverkit-mcp -- deliverkit plan . --goals deb --language python --entry server.rb
+```
 
 ## 接入
 

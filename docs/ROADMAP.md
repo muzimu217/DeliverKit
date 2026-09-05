@@ -135,7 +135,15 @@ AGC/hdc 设备证据和跨平台真实结果仍是最终门槛。
 
 **门槛**：首次使用者从零到一个「装得上、跑得起来」的包不超过 10 分钟；任何失败都能在结果里看到原因与下一步，不需要打开日志文件。
 
-待办（第三轮，按对目标的贡献排序）：Linux 目标跨主机 CI 复核 → `inspect`/`plan` 支持手动指定语言与入口 → 契约 `source_dir` 比对加 realpath → AppImage 构建镜像 pin 版本 → 站点匿名统计 → opt-in 遥测（需拍板）。
+第四轮（2026-09-05）完成：
+
+- `inspect` / `plan` 支持手动指定语言与入口（MCP `language`/`entrypoints` 字段、CLI `--language`/`--entry`），自动识别失败不再是死路；覆盖值写入 Forge.md 机器契约，与自动识别冲突时会标注。
+- `Forge.md` 契约的 `source_dir` 比对改用 realpath，容忍 macOS `/tmp` 与 `/private/tmp` 一类符号链接差异；真不一致时报错列出两个路径。
+- AppImage 构建镜像从 `:latest` pin 到 `appimagecrafters/appimage-builder:1.1.0`。
+- CI：Linux packaging matrix 扩展到 Ubuntu 22.04 + 24.04 双 runner；Node 18 拆出独立的「发布物验证」job（build + MCP 握手 + tarball 安装），dev 工具链（vitest 4）在 Node 20/22 运行。
+- 依赖安全清零：`npm audit` 与 `npm audit --omit=dev` 均 0 漏洞（vitest 1→4、typescript-eslint 6→8、eslint 8.57）。
+
+站点匿名统计与 opt-in 遥测已拍板：**均不接入**。维持零默认遥测红线；「哪个工具最常用」这类问题等有真实用户反馈需求再评估。
 
 ## 6. 成功标准（愿景达成的样子）
 

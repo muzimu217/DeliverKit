@@ -56,13 +56,17 @@
 - **不为了发帖而夸大能力**。Linux 三目标有 e2e + CI 证据；Windows / macOS / 鸿蒙是契约先行、签名门槛待对应 runner 验证。所有文案守这条口径。
 - **不追求 star 曲线**。star 是先行指标，不是目标；把它当目标会导致优化发帖而不是优化产品。
 
-## 下一轮（第三轮）优先级
+## 第四轮清单（2026-09-05 执行完毕）
 
-按「对北极星目标的贡献」排序：
+1. ~~**Linux 目标的 CI 跨主机复核**~~：✅ packaging matrix 在 Ubuntu 22.04 + 24.04 双 runner 上运行。
+2. ~~**`inspect`/`plan` 支持手动指定语言与入口**~~：✅ MCP `language`/`entrypoints` + CLI `--language`/`--entry`，覆盖值直接进入 Forge.md 契约。
+3. ~~**契约类错误可自救**~~：✅ `source_dir` 比对走 realpath（容忍符号链接），报错显示两个路径值。
+4. ~~**AppImage 构建镜像 pin 版本**~~：✅ pin 至 `appimagecrafters/appimage-builder:1.1.0`。
+5. ~~**站点接入匿名统计**~~：❌ 已拍板不接入，维持站点零数据采集承诺。
+6. ~~**opt-in 遥测**~~：❌ 已拍板不做，等真实用户反馈需求再评估。
 
-1. **Linux 目标的 CI 跨主机复核**：目标是让「跑通」在别人的机器上也成立，而不只在作者机器上。
-2. **`inspect`/`plan` 支持手动指定语言与入口**：当前识别失败时建议用户「手动指定」，但工具输入里没有这个字段，这条建议不可执行。
-3. **契约类错误可自救**：`source_dir` 比对不做 realpath，macOS 的 `/tmp` → `/private/tmp` 符号链接会误报不一致，且报错不显示两个值分别是什么。
-4. **AppImage 构建镜像 pin 版本**：当前用 `:latest`，行为会随时间漂移，不利于「同一份契约产出同一个结果」。
-5. **站点接入匿名统计**（GoatCounter / Plausible，无 cookie）：目前 GitHub Pages 站点完全测不到访问。
-6. **opt-in 遥测**（需用户拍板）：回答「哪个 pack 工具最常用、Forge.md 生成成功率」。
+同轮附加：依赖安全清零（`npm audit` 与 `--omit=dev` 均 0 漏洞）；Node 18 拆出发布物验证 job。
+
+## 第五轮候选（待排序）
+
+npm publish 后的 T0 目录上架执行、首个真实用户成功交付的陪伴式支持（Discussions 快速应答）、站点从 YAML metadata 自动生成生态卡片、`pack_*` 产物版本号从项目元数据推导（当前硬编码 0.1.0）。

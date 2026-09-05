@@ -37,8 +37,8 @@ The package also includes the human-facing CLI executable `deliverkit`.
 
 ## Default Workflow
 
-1. Call `inspect_project` with the project root. Use its language, runtime, entrypoint, and existing packaging findings.
-2. Call `generate_packaging_plan` with explicit goals such as `deb`, `rpm`, `appimage`, `windows-msi`, `macos-dmg`, or `harmonyos-hap`.
+1. Call `inspect_project` with the project root. Use its language, runtime, entrypoint, and existing packaging findings. If the language is not recognized (or is wrong), pass the optional `language` (`python` / `javascript` / `typescript` / `go` / `arkts`) and `entrypoints` overrides instead of stopping — they flow into the Forge.md contract. Entrypoints must be relative paths to existing files (or `npm start`).
+2. Call `generate_packaging_plan` with explicit goals such as `deb`, `rpm`, `appimage`, `windows-msi`, `macos-dmg`, or `harmonyos-hap`. The same `language`/`entrypoints` overrides are accepted here when inspection could not detect them.
 3. Read the generated `Forge.md`. Ask the user to review target ecosystems, artifact types, signing boundaries, risks, and verification commands before building.
 4. Call `get_ecosystem_knowledge` when a target's toolchain, signing material, distribution rule, or verification requirement needs explanation.
 5. For Linux targets, call the relevant `pack_deb`, `pack_rpm`, or `pack_appimage` only after the contract is present. These build in isolated containers and verify the artifact in a fresh container.
@@ -65,7 +65,8 @@ Run `deliverkit doctor` before a long build. It reports what is ready on the cur
 ## Failure Recovery
 
 - `plan_not_found`: call `generate_packaging_plan`, then show the user the new `Forge.md` for review.
-- `plan_invalid`: explain the missing target or invalid contract and regenerate with the exact required goal.
+- `plan_invalid`: explain the missing target or invalid contract and regenerate with the exact required goal. A `source_dir` mismatch names both paths; if they differ only by symlink (macOS `/tmp` vs `/private/tmp`), re-run with the real path.
+- `invalid_input` on language/entrypoint overrides: the value is outside the supported set or the entry file does not exist; the message lists what is supported.
 - `toolchain_not_available`: use the supplied reason and suggested fix. Do not retry a 15-minute build until the preflight condition is fixed.
 - `signing_material_missing`: tell the user which secret or keychain identity is missing. Never request or print a private key in chat or a repository.
 - `build_failed` or `verification_failed`: quote `error.log_excerpt`, link `detail_log`, and follow `next_actions`. A timeout is different from a compile failure; suggest pre-pulling images when the result says timeout.
@@ -87,6 +88,12 @@ npx -y --package=deliverkit-mcp -- deliverkit inspect .
 npx -y --package=deliverkit-mcp -- deliverkit plan . --goals deb
 # review Forge.md
 npx -y --package=deliverkit-mcp -- deliverkit pack-deb . --plan Forge.md
+```
+
+For a project the inspector cannot recognize, manual overrides keep the flow alive:
+
+```bash
+npx -y --package=deliverkit-mcp -- deliverkit plan . --goals deb --language python --entry server.rb
 ```
 
 For a multi-platform release, plan all goals, generate the CI workflow, let each matching runner produce a result JSON, then generate one `ReleaseManifest.json` with the evidence.
