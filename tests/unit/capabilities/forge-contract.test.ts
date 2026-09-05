@@ -65,3 +65,57 @@ describe('Forge machine contract', () => {
     }
   });
 });
+
+describe('loadForgeContract - source_dir 符号链接容差', () => {
+  it('declared 与 actual 是同一实际目录的符号链接时不误报', async () => {
+    const real = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-real-'));
+    const link = path.join(os.tmpdir(), `deliverkit-link-${Date.now()}`);
+    try {
+      fs.symlinkSync(real, link);
+      const contract = {
+        schema_version: 1,
+        generated_at: new Date().toISOString(),
+        source_dir: link,
+        project: { name: 'demo', entrypoints: ['app.py'] },
+        delivery_targets: [{ ecosystem: 'linux/ubuntu', artifacts: ['deb'] }],
+      };
+      const planPath = path.join(link, 'Forge.md');
+      fs.writeFileSync(planPath, `# plan\n<!-- deliverkit-contract:${Buffer.from(JSON.stringify(contract), 'utf8').toString('base64url')} -->\n`);
+
+      const loaded = loadForgeContract(planPath, real);
+
+      expect(loaded.ok).toBe(true);
+    } finally {
+      fs.rmSync(real, { recursive: true, force: true });
+      fs.rmSync(link, { force: true });
+    }
+  });
+
+  it('真实不一致时报错携带两个路径值', () => {
+    const dirA = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-a-'));
+    const dirB = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-b-'));
+    try {
+      const contract = {
+        schema_version: 1,
+        generated_at: new Date().toISOString(),
+        source_dir: dirA,
+        project: { name: 'demo', entrypoints: ['app.py'] },
+        delivery_targets: [{ ecosystem: 'linux/ubuntu', artifacts: ['deb'] }],
+      };
+      const planPath = path.join(dirB, 'Forge.md');
+      fs.writeFileSync(planPath, `<!-- deliverkit-contract:${Buffer.from(JSON.stringify(contract), 'utf8').toString('base64url')} -->\n`);
+
+      const loaded = loadForgeContract(planPath, dirB);
+
+      expect(loaded.ok).toBe(false);
+      if (!loaded.ok) {
+        expect(loaded.reason).toContain(dirA);
+        expect(loaded.reason).toContain(dirB);
+        expect(loaded.reason).toContain('符号链接');
+      }
+    } finally {
+      fs.rmSync(dirA, { recursive: true, force: true });
+      fs.rmSync(dirB, { recursive: true, force: true });
+    }
+  });
+});

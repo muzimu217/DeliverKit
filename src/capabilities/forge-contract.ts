@@ -84,14 +84,26 @@ export function loadForgeContract(planPath: string, sourceDir: string): ForgeCon
   const declaredSourceDir = path.isAbsolute(parsed.data.source_dir)
     ? path.resolve(parsed.data.source_dir)
     : path.resolve(planDirectory, parsed.data.source_dir);
-  if (declaredSourceDir !== path.resolve(sourceDir)) {
+  // macOS 上 /tmp 是 /private/tmp 的符号链接；只做 resolve 会把同一目录误判成
+  // 两个 source_dir。realpath 失败（路径已消失等）时退回 resolve 语义。
+  const declaredReal = resolveReal(declaredSourceDir);
+  const actualReal = resolveReal(sourceDir);
+  if (declaredReal !== actualReal) {
     return {
       ok: false,
-      reason: 'Forge.md 的 source_dir 与本次构建 source_dir 不一致；请为该项目重新生成计划',
+      reason: `Forge.md 的 source_dir（${declaredSourceDir}）与本次构建 source_dir（${path.resolve(sourceDir)}）不一致；若是符号链接差异（如 macOS 的 /tmp 与 /private/tmp），请用同一实际路径重新执行；否则请为该项目重新生成计划`,
     };
   }
 
   return { ok: true, contract: parsed.data };
+}
+
+function resolveReal(target: string): string {
+  try {
+    return fs.realpathSync(target);
+  } catch {
+    return path.resolve(target);
+  }
 }
 
 export function contractIncludesArtifact(
