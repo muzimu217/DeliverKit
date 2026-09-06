@@ -16,7 +16,7 @@ GitHub 侧 `promotion-supervision.yml`（周一至周五自动）已覆盖后两
 
 ### 任务 2：每周二 09:30 发布门禁与目录状态审计
 
-> 请创建一个定时任务：每周二 09:30 运行，标题「每周二 09:30 DeliverKit 发布门禁与目录状态审计」。任务内容：只做审计与报告，绝不代替我执行 npm publish 或任何外部发布。仓库 /Users/blackevil/Projects/DeliverKit（GitHub muzimu217/DeliverKit，npm 包 deliverkit-mcp）。步骤：1) git fetch origin 比对本地与远端 main，不一致只报告不 push；2) 检查发布门禁：npm view deliverkit-mcp version（404 = npm 未发布，标记 BLOCKED）、npm run release:check、npm run test:tarball、gh run list 检查 test/release-check/deploy-pages 是否绿色；3) 对照 docs/community/promotion/matrix.md 报告各渠道 BLOCKED/READY，npm 公开前外部目录提交保持 BLOCKED；4) 输出 READY/BLOCKED 逐项结论与证据，失败项用 gh issue create（标签 release-gate）建维护 issue；5) 中文摘要列出阻断原因和用户需要执行的命令。缺凭据时明确说明，不假装发布成功，数据缺失记 UNKNOWN 不归零。
+> 请创建一个定时任务：每周二 09:30 运行，标题「每周二 09:30 DeliverKit 发布门禁与目录状态审计」。任务内容：只做审计与报告，绝不代替我执行 npm publish 或任何外部发布。仓库 /Users/blackevil/Projects/DeliverKit（GitHub muzimu217/DeliverKit，npm 包 deliverkit-mcp）。步骤：1) git fetch origin 比对本地与远端 main，不一致只报告不 push；2) 检查发布门禁：npm view deliverkit-mcp version（404 = npm 未发布，标记 BLOCKED）、npm run release:check、npm run test:tarball、npm run promote:check（推广材料与事实一致性审计）、gh run list 检查 test/release-check/deploy-pages 是否绿色；3) 对照 docs/community/promotion/matrix.md 报告各渠道 BLOCKED/READY，npm 公开前外部目录提交保持 BLOCKED；4) 输出 READY/BLOCKED 逐项结论与证据，失败项用 gh issue create（标签 release-gate）建维护 issue；5) 中文摘要列出阻断原因和用户需要执行的命令。缺凭据时明确说明，不假装发布成功，数据缺失记 UNKNOWN 不归零。
 
 ### 任务 3：每个工作日 09:30 社区响应与北极星进度监督
 
