@@ -119,7 +119,8 @@ CLI 默认输出人类可读摘要（产物、验证项、失败原因、下一�
 - 提 issue：[bug 报告 / 生态支持请求](https://github.com/muzimu217/DeliverKit/issues/new/choose)
 - 提 PR 前请读 [CONTRIBUTING.md](CONTRIBUTING.md)（含「新增生态知识包」与「新增 pack_* 工具」的检查清单）
 - 安全问题请按 [SECURITY.md](SECURITY.md) 私下反馈，不要开公开 issue
-- 讨论与提问：[GitHub Discussions](https://github.com/muzimu217/DeliverKit/discussions)
+- 讨论与提问：[GitHub Discussions](https://github.com/muzimu217/DeliverKit/discussions)（Q&A 24 小时内回应）
+- **用 DeliverKit 打出了装得上、跑得起来的包？** 提交[成功交付反馈](https://github.com/muzimu217/DeliverKit/issues/new?assignees=&labels=success-story&template=success-story.yml)——真实成功交付是本项目的北极星指标，比 star 重要；没有你的明确同意，案例只用于内部计数，不对外宣传。
 
 ## 路线图
 

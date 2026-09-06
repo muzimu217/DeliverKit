@@ -1,0 +1,51 @@
+name: 成功交付反馈
+description: 用 DeliverKit 打出了装得上、跑得起来的包？告诉我们，这比 star 更重要
+labels: [success-story]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这是项目的北极星指标：**真实用户完成一次验证过的交付**。
+        只记录你主动提供的匿名信息；没有你的明确同意，案例只用于内部计数，不会对外宣传。
+        想贴产物截图或 ReleaseManifest.json 摘录都可以（注意先移除路径、签名材料等敏感内容）。
+  - type: input
+    id: project-type
+    attributes:
+      label: 项目类型（匿名）
+      description: 例如：Python Web 服务 / TypeScript CLI / Go HTTP 服务
+    validations:
+      required: true
+  - type: input
+    id: goals
+    attributes:
+      label: 目标产物
+      description: 例如：deb / rpm,appimage / windows-msi
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 验证证据
+      description: 产物装上了吗？跑起来了吗？ReleaseManifest 状态是 verified 吗？
+      placeholder: |
+        - pack-deb 成功，deb 在干净容器安装并运行
+        - ReleaseManifest.json: status=verified, artifacts=1
+    validations:
+      required: true
+  - type: input
+    id: channel
+    attributes:
+      label: 从哪个渠道了解到 DeliverKit
+      description: 例如：Show HN / r/mcp / V2EX / 朋友推荐 / 搜索
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: 对外宣传授权
+      options:
+        - label: 我同意把以上信息（匿名项目类型 + 验证证据）用于 DeliverKit 的对外宣传（截图/文档/社交贴）
+          required: false
+  - type: textarea
+    id: friction
+    attributes:
+      label: 哪一步最卡（可选）
+      description: 帮我们缩短下一个用户的首次成功时间

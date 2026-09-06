@@ -78,6 +78,11 @@ Run `deliverkit doctor` before a long build. It reports what is ready on the cur
 
 Use these labels in summaries and promotion copy. Never describe all ecosystems as fully verified until their runner evidence is present.
 
+## Getting Help / Reporting Success
+
+- Stuck on a step? Open a Q&A in [Discussions](https://github.com/muzimu217/DeliverKit/discussions) with the failed result JSON — it already carries `error.code`, `log_excerpt`, and next actions, so paste it as-is. First response target is 24 hours.
+- Completed a verified delivery? Report it via the “成功交付反馈” issue form or a Show-and-tell discussion (ReleaseManifest.json excerpt welcome; strip paths and signing material first). Explicit consent is required before any case is used publicly; without it, reports only count toward the internal metric.
+
 ## Minimal Example
 
 For a Linux package, the user can run:
