@@ -24,10 +24,12 @@
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
     "clean": "rm -rf dist",
     "copy:runtime-assets": "node scripts/copy-runtime-assets.mjs",
+    "gen:site": "node scripts/generate-site-content.mjs",
+    "promote:check": "node scripts/promote-readiness.mjs",
     "build:release": "npm run build:clean && npm run copy:runtime-assets",
     "test:tarball": "node tests/runtime/npm-tarball-smoke.mjs",
     "release:check": "npm run build:release && node scripts/release-check.mjs && npm pack --dry-run",
-    "verify": "npm run lint && npm run typecheck && npm run build:release && npm test && node tests/runtime/compiled-mcp-smoke.mjs && npm run test:tarball",
+    "verify": "npm run lint && npm run typecheck && npm run gen:site && node scripts/check-site-drift.mjs && npm run build:release && npm test && node tests/runtime/compiled-mcp-smoke.mjs && npm run test:tarball",
     "verify:artifact": "npm run build:release && node tests/runtime/compiled-mcp-smoke.mjs && npm run test:tarball",
     "prepare": "npm run build:release"
   },

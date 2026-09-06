@@ -1,11 +1,5 @@
-export const ecosystems = [
-  { family: 'linux', icon: 'package', accent: 'mint', status: 'VERIFIED / LOCAL + CI', name: 'Ubuntu / Debian', artifact: 'deb', summary: '系统级安装包，适合 Ubuntu LTS 与 systemd 服务。', tags: ['dpkg-deb', 'Docker', '无强制签名'], link: 'https://github.com/muzimu217/DeliverKit/blob/main/src/knowledge/ecosystems/linux-ubuntu.yaml' },
-  { family: 'linux', icon: 'boxes', accent: 'mint', status: 'EXPERIMENTAL / MATRIX', name: 'RPM Linux', artifact: 'rpm', summary: '面向 Rocky、RHEL、Fedora 的系统级交付。', tags: ['rpmbuild', 'Rocky 9', 'GPG 可选'], link: 'https://github.com/muzimu217/DeliverKit/blob/main/src/knowledge/ecosystems/linux-rpm.yaml' },
-  { family: 'linux', icon: 'file-box', accent: 'mint', status: 'EXPERIMENTAL / MATRIX', name: 'Linux AppImage', artifact: '.AppImage', summary: '把运行时和应用封装成单文件，适合便携分发。', tags: ['AppRun', 'x86_64', 'SHA256'], link: 'https://github.com/muzimu217/DeliverKit/blob/main/src/knowledge/ecosystems/linux-appimage.yaml' },
-  { family: 'desktop', icon: 'monitor-down', accent: 'blue', status: 'CI / USER CERTIFICATE', name: 'Windows MSI', artifact: '.msi', summary: 'WiX 构建、Authenticode 签名，再做静默安装/卸载验证。', tags: ['WiX v4', 'signtool', 'msiexec'], link: '#windows-guide' },
-  { family: 'desktop', icon: 'apple', accent: 'coral', status: 'CI / APPLE ACCOUNT', name: 'macOS DMG / PKG', artifact: '.dmg · .pkg', summary: 'codesign、notarytool、公证票据与 Gatekeeper 验证。', tags: ['macos-14', 'notarize', 'spctl'], link: '#apple-guide' },
-  { family: 'mobile', icon: 'smartphone', accent: 'gold', status: 'DEVECO / AGC ACCOUNT', name: 'HarmonyOS HAP / APP', artifact: '.hap · .app', summary: 'DevEco 构建，AGC 正式签名，并通过 hdc 设备验证。', tags: ['hvigorw', 'AGC', 'hdc'], link: '#harmony-guide' },
-];
+// 生态卡片从知识包自动生成（单一事实源）；指南为人工维护的营销文案。
+export { ecosystems } from './ecosystems.generated.js';
 
 export const guides = [
   { id: 'windows-guide', number: '01', icon: 'shield-check', title: 'Windows Authenticode', subtitle: '个人或组织证书 → PFX → Windows runner', steps: ['选择受信任 CA 或 Microsoft Trusted Signing，并完成个人/组织身份验证。', '导出代码签名证书为 PFX，离线备份证书、私钥和密码。', '把 DELIVERKIT_WINDOWS_PFX_BASE64 与 DELIVERKIT_WINDOWS_PFX_PASSWORD 写入 CI secrets。', '由 Windows runner 执行 WiX、signtool 签名，再用 msiexec 静默安装和卸载。'], links: [{ label: 'Trusted Signing 快速开始', url: 'https://learn.microsoft.com/en-us/azure/trusted-signing/quickstart' }, { label: '打开 Windows 知识包', url: 'https://github.com/muzimu217/DeliverKit/blob/main/src/knowledge/ecosystems/windows.yaml' }] },

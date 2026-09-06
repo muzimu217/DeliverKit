@@ -24,6 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      # 漂移守卫：知识包 YAML 变了但没重新生成站点数据时，阻断部署而不是发布过期内容。
+      - name: Verify site content matches knowledge packs
+        run: |
+          set -euo pipefail
+          node scripts/check-site-drift.mjs
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

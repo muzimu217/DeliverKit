@@ -15,6 +15,27 @@ function renderEcosystems(filter = 'all') {
   window.lucide?.createIcons();
 }
 
+/** 筛选计数与「已验证目标」数都从生成数据推导，杜绝与知识包漂移。 */
+function syncCounts() {
+  const families = new Map([['all', ecosystems.length]]);
+  for (const item of ecosystems) {
+    families.set(item.family, (families.get(item.family) ?? 0) + 1);
+  }
+  document.querySelectorAll('.filter-button').forEach((button) => {
+    const count = families.get(button.dataset.filter ?? 'all');
+    if (count !== undefined) {
+      const badge = button.querySelector('span');
+      if (badge) {badge.textContent = String(count).padStart(2, '0');}
+    }
+  });
+  const verified = document.querySelector('[data-verified-count]');
+  if (verified) {
+    verified.textContent = String(
+      ecosystems.filter((item) => item.source?.status === 'verified').length
+    ).padStart(2, '0');
+  }
+}
+
 function renderGuides() {
   const list = document.querySelector('#guide-list');
   if (!list) return;
@@ -67,6 +88,7 @@ function setupCopy() {
 }
 
 renderEcosystems();
+syncCounts();
 renderGuides();
 setupNavigation();
 setupFilters();
