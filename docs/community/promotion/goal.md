@@ -69,4 +69,6 @@
 
 ## 第五轮候选（待排序）
 
-npm publish 后的 T0 目录上架执行、首个真实用户成功交付的陪伴式支持（Discussions 快速应答）、站点从 YAML metadata 自动生成生态卡片、`pack_*` 产物版本号从项目元数据推导（当前硬编码 0.1.0）。
+npm publish 后的 T0 目录上架执行、首个真实用户成功交付的陪伴式支持（Discussions 快速应答）、**AppImage recipe 迁移 appimage-builder 1.1.x**（当前 digest pin 在 0.9.1；1.1.0 的 apt 部署路径不同，需重写 python/node 依赖脚本后在 CI 复核）、站点从 YAML metadata 自动生成生态卡片（已做）、`pack_*` 产物版本号从项目元数据推导（已做）。
+
+另记（2026-09-05 发现）：CI linux-matrix 自第二轮起被 `| tee` 管道吞掉失败退出码，「假绿」约两周；`--json` 标志也因 commander 双重定义失效。两者已修复并加了 `set -euo pipefail`。教训：验证链本身也要被验证。

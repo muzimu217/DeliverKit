@@ -139,7 +139,7 @@ AGC/hdc 设备证据和跨平台真实结果仍是最终门槛。
 
 - `inspect` / `plan` 支持手动指定语言与入口（MCP `language`/`entrypoints` 字段、CLI `--language`/`--entry`），自动识别失败不再是死路；覆盖值写入 Forge.md 机器契约，与自动识别冲突时会标注。
 - `Forge.md` 契约的 `source_dir` 比对改用 realpath，容忍 macOS `/tmp` 与 `/private/tmp` 一类符号链接差异；真不一致时报错列出两个路径。
-- AppImage 构建镜像从 `:latest` pin 到 `appimagecrafters/appimage-builder:1.1.0`。
+- AppImage 构建镜像按 digest 固定为当时通过 e2e 的 appimage-builder 0.9.1 构建（`:latest` 漂移会让「同一契约产出同一结果」失效；升级 1.1.x 需重写 recipe，见 goal.md 技术债）。
 - CI：Linux packaging matrix 扩展到 Ubuntu 22.04 + 24.04 双 runner；Node 18 拆出独立的「发布物验证」job（build + MCP 握手 + tarball 安装），dev 工具链（vitest 4）在 Node 20/22 运行。
 - 依赖安全清零：`npm audit` 与 `npm audit --omit=dev` 均 0 漏洞（vitest 1→4、typescript-eslint 6→8、eslint 8.57）。
 
