@@ -174,7 +174,11 @@ function createRpmBuildScript(
   ];
   return [
     'set -eu',
-    'dnf -y install rpm-build ' + buildPackages.join(' '),
+    // EL9 默认源只有 Node 16；现代项目普遍要求 >=18（deb 路径用 node:18 镜像）。
+    // Node 项目构建统一走 NodeSource Node 20，避免旧 npm 在 .bin 链接上的平台差异。
+    launcher.buildKind === 'node'
+      ? 'curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - && dnf -y install -q rpm-build nodejs'
+      : 'dnf -y install rpm-build ' + buildPackages.join(' '),
     'rm -rf /root/rpmbuild',
     'mkdir -p /root/rpmbuild/SOURCES/app /root/rpmbuild/SPECS',
     'cp -a /workspace/. /root/rpmbuild/SOURCES/app/',
