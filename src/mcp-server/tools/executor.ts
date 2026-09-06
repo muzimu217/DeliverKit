@@ -105,6 +105,7 @@ function dispatch(
         planPath: input.plan_path as string,
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
+        packageVersion: input.package_version as string | undefined,
       });
 
     case 'pack_rpm':
@@ -113,6 +114,7 @@ function dispatch(
         planPath: input.plan_path as string,
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
+        packageVersion: input.package_version as string | undefined,
       });
 
     case 'pack_appimage':
@@ -121,6 +123,7 @@ function dispatch(
         planPath: input.plan_path as string,
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
+        packageVersion: input.package_version as string | undefined,
       });
 
     case 'generate_ci_workflow':
@@ -137,6 +140,7 @@ function dispatch(
         planPath: input.plan_path as string,
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
+        packageVersion: input.package_version as string | undefined,
       });
 
     case 'pack_macos':
@@ -145,6 +149,7 @@ function dispatch(
         planPath: input.plan_path as string,
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
+        packageVersion: input.package_version as string | undefined,
         artifact: input.artifact as 'dmg' | 'pkg' | undefined,
       });
 

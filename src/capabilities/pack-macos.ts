@@ -7,12 +7,14 @@ import type { ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
 import { commandExists, runCommandWithLog, type CommandLogResult } from './utils/command.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
+import { resolveArtifactVersion } from './utils/version.js';
 
 export interface PackMacosRequest {
   sourceDir: string;
   planPath: string;
   outputDir?: string;
   packageName?: string;
+  packageVersion?: string;
   artifact?: 'dmg' | 'pkg';
   platform?: NodeJS.Platform;
   environment?: NodeJS.ProcessEnv;
@@ -61,12 +63,13 @@ export function packMacos(
 
   const packageName = normalizePackageName(request.packageName ?? loaded.contract.project.name);
   if (!packageName) {return failure('build_config_invalid', '项目名无法转换为合法 macOS 包名', '传入 package_name（小写字母、数字和连字符）');}
+  const packageVersion = resolveArtifactVersion(request.packageVersion, loaded.contract.project.version);
   const appPath = findAppBundle(request.sourceDir);
   if (!appPath) {return failure('build_config_invalid', '项目目录中没有可签名的 .app bundle', '先在 Xcode 中构建 .app，或提供包含 .app 的 macOS 项目');}
 
   const outputDir = path.resolve(request.outputDir ?? path.join(request.sourceDir, '.deliverkit', 'artifacts'));
   const workDir = path.join(outputDir, `.macos-${artifact}`);
-  const artifactPath = path.join(outputDir, `${packageName}-0.1.0.${artifact}`);
+  const artifactPath = path.join(outputDir, `${packageName}-${packageVersion}.${artifact}`);
   const p12Path = path.join(workDir, `${packageName}.p12`);
   const logDir = path.join(outputDir, 'logs');
   fs.mkdirSync(logDir, { recursive: true });

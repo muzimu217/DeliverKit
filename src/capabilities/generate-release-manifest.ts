@@ -7,6 +7,7 @@ import type { Artifact, ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
 import { getGitInfo } from './utils/git-info.js';
 import { assertSourceDir, assertWithinRoot, PathValidationError, pathExists } from './utils/filesystem.js';
+import { DEFAULT_ARTIFACT_VERSION } from './utils/version.js';
 
 export interface GenerateReleaseManifestRequest {
   sourceDir: string;
@@ -106,6 +107,7 @@ export function generateReleaseManifest(request: GenerateReleaseManifestRequest)
     schema_version: 1,
     status: manifestArtifacts.length > 0 && unverified.length === 0 && warnings.length === 0 ? 'verified' : 'incomplete',
     generated_at: new Date().toISOString(),
+    release_version: loaded.contract.project.version ?? DEFAULT_ARTIFACT_VERSION,
     source_dir: path.resolve(request.sourceDir),
     plan_path: path.resolve(request.planPath),
     git: getGitInfo(request.sourceDir),

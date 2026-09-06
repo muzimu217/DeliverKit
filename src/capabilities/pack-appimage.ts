@@ -9,10 +9,14 @@ import { sha256File } from './utils/checksum.js';
 import { describeCommandFailure, logTail, runCommandWithLog } from './utils/command.js';
 import { amd64EmulationWarning, normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
+import { resolveArtifactVersion } from './utils/version.js';
 
-// Pin 2026-09-05: appimage-builder 1.1.0（linux/amd64）。同一契约必须产出同一结果，
-// 不跟随 :latest 漂移；升级时先在 CI linux-matrix 复核再改这里。
-const BUILD_IMAGE = 'appimagecrafters/appimage-builder:1.1.0';
+// Pin 2026-09-05: appimage-builder 0.9.1（2021-07-08 构建，digest 固定）。
+// recipe（opt/libc loader、focal 源）是针对 0.9.x 行为写的；1.1.0 的 apt 部署
+// 路径不同，实测构建失败。同一契约必须产出同一结果，digest pin 才可复现。
+// 升级到 1.1.x 需重写 python/node 依赖脚本（见 goal.md 技术债清单）。
+const BUILD_IMAGE =
+  'appimagecrafters/appimage-builder@sha256:0188548ac837d832666bcaeb6a7833d575eba8ef1fedb6cd7717a74775dce2c9';
 const VERIFY_IMAGE = 'ubuntu:22.04';
 const BUILD_TIMEOUT_MS = 15 * 60_000;
 const VERIFY_TIMEOUT_MS = 5 * 60_000;
@@ -22,6 +26,7 @@ export interface PackAppImageRequest {
   planPath: string;
   outputDir?: string;
   packageName?: string;
+  packageVersion?: string;
 }
 
 export function packAppImage(
@@ -53,6 +58,7 @@ export function packAppImage(
   // 项目侧检查排在 Docker 探测之前：语言不支持时不该让用户先白等一次守护进程探测。
   const packageName = normalizePackageName(request.packageName ?? plan.contract.project.name);
   if (!packageName) {return failure('build_config_invalid', '项目名无法转换为合法 AppImage 名称', '传入 package_name（小写字母、数字和连字符）');}
+  const packageVersion = resolveArtifactVersion(request.packageVersion, plan.contract.project.version);
   const launcher = resolveLinuxLauncher(plan.contract, packageName, request.sourceDir);
   if (!launcher.ok) {return failure(launcher.code, launcher.reason, launcher.suggestedFix);}
 
@@ -74,11 +80,11 @@ export function packAppImage(
 
   const outputDir = path.resolve(request.outputDir ?? path.join(request.sourceDir, '.deliverkit', 'artifacts'));
   fs.mkdirSync(outputDir, { recursive: true });
-  const artifactName = `${packageName}-0.1.0-x86_64.AppImage`;
+  const artifactName = `${packageName}-${packageVersion}-x86_64.AppImage`;
   const artifactPath = path.join(outputDir, artifactName);
   const logDir = path.join(outputDir, 'logs');
   const runStamp = logStamp();
-  const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createAppImageBuilderScript(packageName, artifactName, launcher.value, plan.contract.project.entrypoints[0])), {
+  const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createAppImageBuilderScript(packageName, packageVersion, artifactName, launcher.value, plan.contract.project.entrypoints[0])), {
     timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-appimage-build-${runStamp}.log`,
   });
   if (!build.success) {
@@ -131,7 +137,7 @@ export function packAppImage(
   };
 }
 
-function createAppImageBuilderScript(packageName: string, artifactName: string, launcher: LinuxLauncher, entry: string | undefined): string {
+function createAppImageBuilderScript(packageName: string, packageVersion: string, artifactName: string, launcher: LinuxLauncher, entry: string | undefined): string {
   const isPython = launcher.buildKind === 'python';
   const isGo = launcher.buildKind === 'go';
   const isNode = launcher.buildKind === 'node';
@@ -176,7 +182,7 @@ function createAppImageBuilderScript(packageName: string, artifactName: string, 
     `    id: org.deliverkit.${packageName}`,
     `    name: ${packageName}`,
     '    icon: deliverkit',
-    '    version: 0.1.0',
+    `    version: ${packageVersion}`,
     `    exec: "${executable}"`,
     `    exec_args: "${args}"`,
     '  apt:',

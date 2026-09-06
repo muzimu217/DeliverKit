@@ -18,6 +18,8 @@ export const ForgeContractSchema = z.object({
   source_dir: z.string(),
   project: z.object({
     name: z.string(),
+    // optional：旧 Forge.md（无版本）仍可解析；pack 侧回退 0.1.0。
+    version: z.string().optional(),
     language: z.string().optional(),
     runtime: z.string().optional(),
     entrypoints: z.array(z.string()),

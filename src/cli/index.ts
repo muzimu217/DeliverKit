@@ -38,6 +38,7 @@ interface PlanCliOptions extends JsonOption {
 interface PackCliOptions extends JsonOption {
   output?: string;
   name?: string;
+  version?: string;
 }
 
 interface GenerateCiCliOptions extends JsonOption {
@@ -56,8 +57,7 @@ function finish(result: ForgeKitResult, options: JsonOption): void {
 program
   .name('deliverkit')
   .description('AI 交付大脑：规划一个产品到各生态的合法交付链路')
-  .version('0.2.0')
-  .option('--json', '输出结构化 JSON（供脚本与 Agent 使用）');
+  .version('0.3.0');
 
 program
   .command('doctor')
@@ -65,7 +65,7 @@ program
   .option('--json', '输出结构化 JSON')
   .action((options: JsonOption) => {
     const report = runDoctor();
-    if (options.json ?? program.opts().json) {
+    if (options.json) {
       process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
       return;
     }
@@ -116,6 +116,7 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'Debian 包名，默认使用项目名')
+  .option('--version <version>', '产物版本，默认取项目元数据（package.json/pyproject.toml），回退 0.1.0')
   .option('--json', '输出结构化 JSON')
   .action((source: string, options: PackCliOptions & { plan: string }) => {
     finish(packDeb({
@@ -123,6 +124,7 @@ program
       planPath: options.plan,
       outputDir: options.output,
       packageName: options.name,
+      packageVersion: options.version,
     }), options);
   });
 
@@ -133,6 +135,7 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'RPM 包名，默认使用项目名')
+  .option('--version <version>', '产物版本，默认取项目元数据（package.json/pyproject.toml），回退 0.1.0')
   .option('--json', '输出结构化 JSON')
   .action((source: string, options: PackCliOptions & { plan: string }) => {
     finish(packRpm({
@@ -140,6 +143,7 @@ program
       planPath: options.plan,
       outputDir: options.output,
       packageName: options.name,
+      packageVersion: options.version,
     }), options);
   });
 
@@ -150,9 +154,10 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'AppImage 名称，默认使用项目名')
+  .option('--version <version>', '产物版本，默认取项目元数据（package.json/pyproject.toml），回退 0.1.0')
   .option('--json', '输出结构化 JSON')
   .action((source: string, options: PackCliOptions & { plan: string }) => {
-    finish(packAppImage({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name }), options);
+    finish(packAppImage({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name, packageVersion: options.version }), options);
   });
 
 program
@@ -174,9 +179,10 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'MSI 名称，默认使用项目名')
+  .option('--version <version>', '产物版本，默认取项目元数据（package.json/pyproject.toml），回退 0.1.0')
   .option('--json', '输出结构化 JSON')
   .action((source: string, options: PackCliOptions & { plan: string }) => {
-    finish(packWindowsMsi({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name }), options);
+    finish(packWindowsMsi({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name, packageVersion: options.version }), options);
   });
 
 program
@@ -186,10 +192,12 @@ program
   .requiredOption('--plan <path>', '已审查的 Forge.md 路径')
   .option('--output <path>', '产物输出目录，默认 <source>/.deliverkit/artifacts')
   .option('--name <package>', 'DMG/PKG 名称，默认使用项目名')
+  .option('--version <version>', '产物版本，默认取项目元数据（package.json/pyproject.toml），回退 0.1.0')
   .option('--artifact <type>', '产物类型：dmg 或 pkg；缺省按 Forge.md 选择')
   .option('--json', '输出结构化 JSON')
   .action((source: string, options: PackCliOptions & { plan: string; artifact?: 'dmg' | 'pkg' }) => {
-    finish(packMacos({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name, artifact: options.artifact }), options);
+    finish(packMacos({ sourceDir: source, planPath: options.plan, outputDir: options.output, packageName: options.name,
+      packageVersion: options.version, artifact: options.artifact }), options);
   });
 
 program

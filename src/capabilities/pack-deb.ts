@@ -14,6 +14,7 @@ import { sha256File } from './utils/checksum.js';
 import { describeCommandFailure, logTail, runCommandWithLog, type CommandLogResult } from './utils/command.js';
 import { normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
+import { resolveArtifactVersion } from './utils/version.js';
 
 const BUILD_IMAGE = 'ubuntu:22.04';
 const NODE_BUILD_IMAGE = 'node:18-bookworm';
@@ -26,6 +27,7 @@ export interface PackDebRequest {
   planPath: string;
   outputDir?: string;
   packageName?: string;
+  packageVersion?: string;
 }
 
 export type DockerRunner = (
@@ -75,6 +77,7 @@ export function packDeb(
   if (!packageName) {
     return failure('build_config_invalid', '项目名无法转换为合法 Debian 包名', '传入 package_name（小写字母、数字和连字符）');
   }
+  const packageVersion = resolveArtifactVersion(request.packageVersion, contractResult.contract.project.version);
 
   const launch = resolveLinuxLauncher(contractResult.contract, packageName, request.sourceDir);
   if (!launch.ok) {
@@ -98,14 +101,14 @@ export function packDeb(
   const outputDir = path.resolve(request.outputDir ?? path.join(request.sourceDir, '.deliverkit', 'artifacts'));
   fs.mkdirSync(outputDir, { recursive: true });
   const architecture = launch.value.buildKind === 'go' ? debArchitecture() : 'all';
-  const artifactName = `${packageName}_0.1.0_${architecture}.deb`;
+  const artifactName = `${packageName}_${packageVersion}_${architecture}.deb`;
   const buildImage = launch.value.buildKind === 'node' ? NODE_BUILD_IMAGE : BUILD_IMAGE;
   const artifactPath = path.join(outputDir, artifactName);
   const logDir = path.join(outputDir, 'logs');
   const runStamp = logStamp();
   const build = runner(
     'docker',
-    dockerRunArgs(buildImage, request.sourceDir, outputDir, createDebBuildScript(packageName, artifactName, launch.value, architecture)),
+    dockerRunArgs(buildImage, request.sourceDir, outputDir, createDebBuildScript(packageName, artifactName, packageVersion, launch.value, architecture)),
     { timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-deb-build-${runStamp}.log` }
   );
   if (!build.success) {
@@ -271,7 +274,7 @@ export function resolveLinuxLauncher(contract: ForgeContract, packageName: strin
   };
 }
 
-function createDebBuildScript(packageName: string, artifactName: string, launcher: LinuxLauncher, architecture: string): string {
+function createDebBuildScript(packageName: string, artifactName: string, packageVersion: string, launcher: LinuxLauncher, architecture: string): string {
   const dependencyInstall = launcher.buildKind === 'python'
     ? `if [ -f /package/opt/${packageName}/requirements.txt ]; then /package/opt/${packageName}/venv/bin/pip install --no-cache-dir -r /package/opt/${packageName}/requirements.txt; fi`
     : launcher.buildKind === 'node'
@@ -298,7 +301,7 @@ function createDebBuildScript(packageName: string, artifactName: string, launche
     venvCommand,
     dependencyInstall,
     buildCommand,
-    `printf '%s\\n' 'Package: ${packageName}' 'Version: 0.1.0' 'Section: utils' 'Priority: optional' 'Architecture: ${architecture}' 'Maintainer: DeliverKit <noreply@deliverkit.dev>' 'Depends: ${launcher.runtimePackages.join(', ')}' 'Description: ${packageName} application package built by DeliverKit' > /package/DEBIAN/control`,
+    `printf '%s\\n' 'Package: ${packageName}' 'Version: ${packageVersion}' 'Section: utils' 'Priority: optional' 'Architecture: ${architecture}' 'Maintainer: DeliverKit <noreply@deliverkit.dev>' 'Depends: ${launcher.runtimePackages.join(', ')}' 'Description: ${packageName} application package built by DeliverKit' > /package/DEBIAN/control`,
     `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(launcher.command)} > /package/usr/bin/${packageName}`,
     `chmod 0755 /package/usr/bin/${packageName}`,
     `dpkg-deb --root-owner-group --build /package /output/${artifactName}`,

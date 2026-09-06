@@ -21,7 +21,7 @@ import {
   deriveRisks,
   type DeliveryTargetPlan,
 } from './plan-decision-engine.js';
-import { renderForgeMd } from './forge-renderer.js';
+import { inferProjectVersion, renderForgeMd } from './forge-renderer.js';
 import { writePlan } from './plan-writer.js';
 
 export async function generatePackagingPlan(
@@ -66,6 +66,12 @@ export async function generatePackagingPlan(
   const nextActions = deriveNextActions(targets, inspection);
   const decisions = deriveDecisionBasis(targets);
   const planPath = path.join(sourceDir, 'Forge.md');
+  const planWarnings = [...warnings];
+  if (inferProjectVersion(sourceDir).source === 'default') {
+    planWarnings.push(
+      '项目元数据中没有版本号，产物版本回退 0.1.0；建议在 package.json / pyproject.toml 中声明版本，或在构建命令用 --version 指定'
+    );
+  }
 
   const writeResult = writePlan(
     planPath,
@@ -95,7 +101,7 @@ export async function generatePackagingPlan(
     summary: `已生成 ${inspection.language || '未知语言'} 项目的交付计划，目标生态：${targets
       .map((t) => t.id)
       .join(', ')}`,
-    warnings: [...(inspection.warnings || []), ...warnings],
+    warnings: [...(inspection.warnings || []), ...planWarnings],
     decision_basis: decisions,
     next_actions: nextActions,
     delivery_targets: targets.map(toDeliveryTargetSummary),

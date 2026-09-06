@@ -6,6 +6,7 @@
 
 ## Project
 - Name: {{project_name}}
+- Version: {{project_version}}
 - Type: {{project_type}}
 - Language: {{language}}
 - Runtime: {{runtime}}

@@ -292,3 +292,68 @@ describe('pack_deb', () => {
     expect(scripts[0]).toContain('npm start');
   });
 });
+
+describe('pack_deb 版本推导', () => {
+  it('构建脚本与产物文件名使用契约中的项目版本', async () => {
+    const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-deb-ver-'));
+    tempDirs.push(sourceDir);
+    fs.writeFileSync(path.join(sourceDir, 'app.py'), 'print("healthy")\n');
+    fs.writeFileSync(path.join(sourceDir, 'pyproject.toml'), '[project]\nname = "demo"\nversion = "2.3.4"\n');
+    const plan = await generatePackagingPlan(sourceDir, ['deb']);
+    if (plan.status !== 'success' || !plan.plan_path) {
+      throw new Error('failed to create test plan');
+    }
+    const outputDir = path.join(sourceDir, 'out');
+    let buildScript = '';
+    const runner: DockerRunner = (_command, args, options) => {
+      if (!buildScript) {
+        buildScript = args.at(-1) ?? '';
+        fs.mkdirSync(outputDir, { recursive: true });
+        const artifactName = buildScript.match(/\/output\/([^\s]+\.deb)/)?.[1];
+        if (!artifactName) {
+          throw new Error('build script did not declare a deb artifact');
+        }
+        fs.writeFileSync(path.join(outputDir, artifactName), 'package');
+      }
+      return {
+        success: true, exitCode: 0, stdout: '', stderr: '',
+        logPath: path.join(outputDir, 'logs', options.logFileName ?? 'command.log'),
+      };
+    };
+
+    const result = packDeb({ sourceDir, planPath: plan.plan_path, outputDir }, runner, () => true);
+
+    expect(result.status).toBe('success');
+    expect(buildScript).toContain("'Version: 2.3.4'");
+    expect(result.artifacts?.[0]?.path).toMatch(/demo_2\.3\.4_all\.deb$/);
+  });
+
+  it('请求级 package_version 覆盖契约版本', async () => {
+    const project = await makeProject();
+    let buildScript = '';
+    const runner: DockerRunner = (_command, args, options) => {
+      if (!buildScript) {
+        buildScript = args.at(-1) ?? '';
+        fs.mkdirSync(project.outputDir, { recursive: true });
+        const artifactName = buildScript.match(/\/output\/([^\s]+\.deb)/)?.[1];
+        if (artifactName) {
+          fs.writeFileSync(path.join(project.outputDir, artifactName), 'package');
+        }
+      }
+      return {
+        success: true, exitCode: 0, stdout: '', stderr: '',
+        logPath: path.join(project.outputDir, 'logs', options.logFileName ?? 'command.log'),
+      };
+    };
+
+    const result = packDeb(
+      { sourceDir: project.sourceDir, planPath: project.planPath, outputDir: project.outputDir, packageVersion: '9.9.9' },
+      runner,
+      () => true
+    );
+
+    expect(result.status).toBe('success');
+    expect(buildScript).toContain("'Version: 9.9.9'");
+    expect(result.artifacts?.[0]?.path).toMatch(/_9\.9\.9_all\.deb$/);
+  });
+});

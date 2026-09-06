@@ -169,6 +169,7 @@ export const GetEcosystemKnowledgeOutputSchema = DeliverKitResultSchema.extend({
 
 // pack_deb
 export const PackDebInputSchema = z.object({
+  package_version: z.string().optional().describe('产物版本；缺省时使用 Forge.md 契约中的项目版本（来自项目元数据，最终回退 0.1.0）'),
   source_dir: SourceDirSchema,
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
@@ -179,6 +180,7 @@ export const PackDebOutputSchema = DeliverKitResultSchema;
 
 // pack_rpm
 export const PackRpmInputSchema = z.object({
+  package_version: z.string().optional().describe('产物版本；缺省时使用 Forge.md 契约中的项目版本（来自项目元数据，最终回退 0.1.0）'),
   source_dir: SourceDirSchema,
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
@@ -189,6 +191,7 @@ export const PackRpmOutputSchema = DeliverKitResultSchema;
 
 // pack_appimage
 export const PackAppImageInputSchema = z.object({
+  package_version: z.string().optional().describe('产物版本；缺省时使用 Forge.md 契约中的项目版本（来自项目元数据，最终回退 0.1.0）'),
   source_dir: SourceDirSchema,
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
@@ -209,6 +212,7 @@ export const GenerateCiWorkflowOutputSchema = DeliverKitResultSchema;
 
 // pack_windows_msi
 export const PackWindowsMsiInputSchema = z.object({
+  package_version: z.string().optional().describe('产物版本；缺省时使用 Forge.md 契约中的项目版本（来自项目元数据，最终回退 0.1.0）'),
   source_dir: SourceDirSchema,
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
@@ -219,6 +223,7 @@ export const PackWindowsMsiOutputSchema = DeliverKitResultSchema;
 
 // pack_macos
 export const PackMacosInputSchema = z.object({
+  package_version: z.string().optional().describe('产物版本；缺省时使用 Forge.md 契约中的项目版本（来自项目元数据，最终回退 0.1.0）'),
   source_dir: SourceDirSchema,
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),

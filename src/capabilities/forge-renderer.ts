@@ -5,6 +5,7 @@
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readTextFile } from './utils/filesystem.js';
+import { DEFAULT_ARTIFACT_VERSION, normalizeVersion } from './utils/version.js';
 import type { InspectProjectOutput } from './types.js';
 import type { DeliveryTargetPlan } from './plan-decision-engine.js';
 import { renderForgeContract, type ForgeContract } from './forge-contract.js';
@@ -26,17 +27,62 @@ export interface ForgeRenderContext {
   nextActions: string[];
 }
 
+export interface ProjectVersionInference {
+  value: string;
+  source: 'package.json' | 'pyproject.toml' | 'app.json5' | 'default';
+}
+
+/**
+ * 产物版本只信项目元数据（package.json / pyproject.toml / app.json5），
+ * 不引入 git 依赖：构建环境里 git 元数据可能被剥离，版本必须可从源码本身推导。
+ */
+export function inferProjectVersion(sourceDir: string): ProjectVersionInference {
+  const pyproject = readTextFile(path.join(sourceDir, 'pyproject.toml'));
+  const pyprojectVersion = pyproject?.match(/version\s*=\s*["']([^"']+)["']/)?.[1];
+  if (pyprojectVersion) {
+    return { value: pyprojectVersion, source: 'pyproject.toml' };
+  }
+
+  const packageJson = readTextFile(path.join(sourceDir, 'package.json'));
+  if (packageJson) {
+    try {
+      const parsed: unknown = JSON.parse(packageJson);
+      if (isVersionedPackage(parsed)) {
+        return { value: parsed.version, source: 'package.json' };
+      }
+    } catch {
+      // Invalid package.json is reported by project inspection when relevant.
+    }
+  }
+
+  const appJson5 = readTextFile(path.join(sourceDir, 'AppScope', 'app.json5'));
+  const versionName = appJson5?.match(/["']versionName["']\s*:\s*["']([^"']+)["']/)?.[1];
+  if (versionName) {
+    return { value: versionName, source: 'app.json5' };
+  }
+
+  return { value: DEFAULT_ARTIFACT_VERSION, source: 'default' };
+}
+
+function isVersionedPackage(value: unknown): value is { version: string } {
+  return typeof value === 'object' && value !== null &&
+    'version' in value && typeof (value).version === 'string' &&
+    (value as { version: string }).version.length > 0;
+}
+
 export function renderForgeMd(context: ForgeRenderContext): string {
   const { inspectResult: inspection, deliveryTargets, risks, nextActions } = context;
   const template = loadTemplate();
   const projectName = inferProjectName(context.sourceDir);
   const entry = inspection.entrypoints?.[0] || '（未检测到）';
   const projectType = inferProjectType(deliveryTargets);
+  const projectVersion = normalizeVersion(inferProjectVersion(context.sourceDir).value) ?? DEFAULT_ARTIFACT_VERSION;
 
   const generatedAt = new Date().toISOString();
   const rendered = template
     .replace(/{{generated_at}}/g, generatedAt)
     .replace(/{{project_name}}/g, projectName)
+    .replace(/{{project_version}}/g, projectVersion)
     .replace(/{{project_type}}/g, projectType)
     .replace(/{{language}}/g, inspection.language || (projectType === 'mobile' ? 'ArkTS' : '未知'))
     .replace(/{{runtime}}/g, inspection.runtime || (projectType === 'mobile' ? 'ArkUI / 方舟编译器' : '未知'))
@@ -56,6 +102,7 @@ export function renderForgeMd(context: ForgeRenderContext): string {
     source_dir: '.',
     project: {
       name: projectName,
+      version: projectVersion,
       language: inspection.language,
       runtime: inspection.runtime,
       entrypoints: inspection.entrypoints ?? [],
@@ -179,6 +226,7 @@ const FALLBACK_TEMPLATE = `# DeliverKit Delivery Plan
 
 ## Project
 - Name: {{project_name}}
+- Version: {{project_version}}
 - Type: {{project_type}}
 - Language: {{language}}
 - Runtime: {{runtime}}

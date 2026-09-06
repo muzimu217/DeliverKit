@@ -56,6 +56,7 @@ jobs:
       - run: npm run build:clean
       - name: Build and verify Linux packages
         run: |
+          set -euo pipefail
           mkdir -p .deliverkit .deliverkit/linux-matrix-manifests
           DELIVERKIT_E2E_EVIDENCE_DIR=.deliverkit/linux-matrix-manifests node tests/e2e/linux-matrix.mjs | tee .deliverkit/linux-matrix-result.json
       - name: Upload Linux matrix evidence

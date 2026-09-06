@@ -188,3 +188,45 @@ describe('generate_packaging_plan 手动指定语言与入口', () => {
     expect(fs.existsSync(path.join(dir, 'Forge.md'))).toBe(false);
   });
 });
+
+describe('generate_packaging_plan 版本推导', () => {
+  it('pyproject.toml 的 version 写入契约', async () => {
+    const dir = makeProject('versioned-python');
+    fs.writeFileSync(path.join(dir, 'app.py'), 'print("hi")\n');
+    fs.writeFileSync(path.join(dir, 'pyproject.toml'), '[project]\nname = "demo"\nversion = "2.3.4"\n');
+
+    const result = await generatePackagingPlan(dir, ['deb']);
+
+    expect(result.status).toBe('success');
+    const content = fs.readFileSync(result.plan_path!, 'utf-8');
+    expect(content).toContain('- Version: 2.3.4');
+    const encoded = content.match(/deliverkit-contract:([A-Za-z0-9_-]+)/)?.[1];
+    const contract = JSON.parse(Buffer.from(encoded!, 'base64url').toString('utf-8'));
+    expect(contract.project.version).toBe('2.3.4');
+  });
+
+  it('package.json 的 version 写入契约', async () => {
+    const dir = makeProject('versioned-node');
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"demo","version":"5.1.0"}');
+
+    const result = await generatePackagingPlan(dir, ['deb']);
+
+    expect(result.status).toBe('success');
+    const encoded = fs.readFileSync(result.plan_path!, 'utf-8').match(/deliverkit-contract:([A-Za-z0-9_-]+)/)?.[1];
+    const contract = JSON.parse(Buffer.from(encoded!, 'base64url').toString('utf-8'));
+    expect(contract.project.version).toBe('5.1.0');
+  });
+
+  it('无版本元数据时回退 0.1.0 并给出警告', async () => {
+    const dir = makeProject('unversioned');
+    fs.writeFileSync(path.join(dir, 'app.py'), 'print("hi")\n');
+
+    const result = await generatePackagingPlan(dir, ['deb']);
+
+    expect(result.status).toBe('success');
+    expect(result.warnings?.some((w) => w.includes('版本') && w.includes('0.1.0'))).toBe(true);
+    const encoded = fs.readFileSync(result.plan_path!, 'utf-8').match(/deliverkit-contract:([A-Za-z0-9_-]+)/)?.[1];
+    const contract = JSON.parse(Buffer.from(encoded!, 'base64url').toString('utf-8'));
+    expect(contract.project.version).toBe('0.1.0');
+  });
+});

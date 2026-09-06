@@ -9,6 +9,7 @@ import { sha256File } from './utils/checksum.js';
 import { describeCommandFailure, logTail, runCommandWithLog } from './utils/command.js';
 import { normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
+import { resolveArtifactVersion } from './utils/version.js';
 
 const IMAGE = 'rockylinux:9';
 const BUILD_TIMEOUT_MS = 10 * 60_000;
@@ -19,6 +20,7 @@ export interface PackRpmRequest {
   planPath: string;
   outputDir?: string;
   packageName?: string;
+  packageVersion?: string;
 }
 
 export function packRpm(
@@ -56,6 +58,7 @@ export function packRpm(
   if (!packageName) {
     return failure('build_config_invalid', '项目名无法转换为合法 RPM 包名', '传入 package_name（小写字母、数字和连字符）');
   }
+  const packageVersion = resolveArtifactVersion(request.packageVersion, plan.contract.project.version);
   const launcher = resolveLinuxLauncher(plan.contract, packageName, request.sourceDir);
   if (!launcher.ok) {
     return failure(launcher.code, launcher.reason, launcher.suggestedFix);
@@ -81,7 +84,7 @@ export function packRpm(
   const logDir = path.join(outputDir, 'logs');
   const runStamp = logStamp();
   const sourceOutputPath = relativePathWithin(request.sourceDir, outputDir);
-  const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createRpmBuildScript(packageName, architecture, launcher.value, sourceOutputPath)), {
+  const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createRpmBuildScript(packageName, packageVersion, architecture, launcher.value, sourceOutputPath)), {
     timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-rpm-build-${runStamp}.log`,
   });
   if (!build.success) {
@@ -140,6 +143,7 @@ export function packRpm(
 
 function createRpmBuildScript(
   packageName: string,
+  packageVersion: string,
   architecture: string,
   launcher: LinuxLauncher,
   sourceOutputPath: string | null
@@ -166,7 +170,7 @@ function createRpmBuildScript(
       }
     : launcher;
   const specLines = [
-    `Name: ${packageName}`, 'Version: 0.1.0', 'Release: 1%{?dist}', 'Summary: DeliverKit application package', 'License: MIT', `BuildArch: ${architecture}`, `Requires: ${runtimePackages.join(', ')}`, '', '%description', `${packageName} application package built by DeliverKit.`, '', '%prep', '', '%build', buildCommand, '', '%install', 'rm -rf %{buildroot}', `mkdir -p %{buildroot}/opt/${packageName} %{buildroot}/usr/bin`, `cp -a %{_sourcedir}/app/. %{buildroot}/opt/${packageName}/`, `rm -rf %{buildroot}/opt/${packageName}/.git %{buildroot}/opt/${packageName}/.deliverkit`, `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(rpmLauncher.command)} > %{buildroot}/usr/bin/${packageName}`, `chmod 0755 %{buildroot}/usr/bin/${packageName}`, '', '%files', `/opt/${packageName}`, `/usr/bin/${packageName}`,
+    `Name: ${packageName}`, `Version: ${packageVersion}`, 'Release: 1%{?dist}', 'Summary: DeliverKit application package', 'License: MIT', `BuildArch: ${architecture}`, `Requires: ${runtimePackages.join(', ')}`, '', '%description', `${packageName} application package built by DeliverKit.`, '', '%prep', '', '%build', buildCommand, '', '%install', 'rm -rf %{buildroot}', `mkdir -p %{buildroot}/opt/${packageName} %{buildroot}/usr/bin`, `cp -a %{_sourcedir}/app/. %{buildroot}/opt/${packageName}/`, `rm -rf %{buildroot}/opt/${packageName}/.git %{buildroot}/opt/${packageName}/.deliverkit`, `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(rpmLauncher.command)} > %{buildroot}/usr/bin/${packageName}`, `chmod 0755 %{buildroot}/usr/bin/${packageName}`, '', '%files', `/opt/${packageName}`, `/usr/bin/${packageName}`,
   ];
   return [
     'set -eu',

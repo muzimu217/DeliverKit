@@ -8,6 +8,7 @@ import type { ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
 import { commandExists, runCommandWithLog, type CommandLogResult } from './utils/command.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
+import { resolveArtifactVersion, toMsiProductVersion } from './utils/version.js';
 
 const WINDOWS_PLATFORM: NodeJS.Platform = 'win32';
 
@@ -16,6 +17,7 @@ export interface PackWindowsMsiRequest {
   planPath: string;
   outputDir?: string;
   packageName?: string;
+  packageVersion?: string;
   platform?: NodeJS.Platform;
   environment?: NodeJS.ProcessEnv;
 }
@@ -77,6 +79,7 @@ export function packWindowsMsi(
   if (!packageName) {
     return failure('build_config_invalid', '项目名无法转换为合法 Windows MSI 名称', '传入 package_name（小写字母、数字和连字符）');
   }
+  const packageVersion = resolveArtifactVersion(request.packageVersion, loaded.contract.project.version);
   const files = collectSourceFiles(request.sourceDir, request.outputDir);
   if (files.length === 0) {
     return failure('build_config_invalid', '项目目录没有可安装的源文件', '在项目根目录提供应用源码后重试');
@@ -89,13 +92,13 @@ export function packWindowsMsi(
   fs.mkdirSync(workDir, { recursive: true });
   const sourcePath = path.join(workDir, `${packageName}.wxs`);
   const pfxPath = path.join(workDir, `${packageName}.pfx`);
-  const artifactPath = path.join(outputDir, `${packageName}-0.1.0-x64.msi`);
+  const artifactPath = path.join(outputDir, `${packageName}-${packageVersion}-x64.msi`);
   const installLogPath = path.join(outputDir, 'logs', `${packageName}-msi-install.log`);
   const logDir = path.join(outputDir, 'logs');
   fs.mkdirSync(logDir, { recursive: true });
 
   try {
-    fs.writeFileSync(sourcePath, renderWixSource(request.sourceDir, packageName, files), 'utf8');
+    fs.writeFileSync(sourcePath, renderWixSource(request.sourceDir, packageName, toMsiProductVersion(packageVersion), files), 'utf8');
     const decodedPfx = Buffer.from(pfxBase64, 'base64');
     if (decodedPfx.length === 0) {
       return failure('signing_material_missing', 'DELIVERKIT_WINDOWS_PFX_BASE64 不是有效的非空 PFX', '重新导出 PFX 并以 base64 写入 GitHub Actions secret');
@@ -171,7 +174,7 @@ export function packWindowsMsi(
   }
 }
 
-function renderWixSource(sourceDir: string, packageName: string, files: string[]): string {
+function renderWixSource(sourceDir: string, packageName: string, productVersion: string, files: string[]): string {
   const root = makeDirectoryNode('root', 'INSTALLFOLDER');
   for (const file of files) {
     addFile(root, file, sourceDir);
@@ -181,7 +184,7 @@ function renderWixSource(sourceDir: string, packageName: string, files: string[]
   const references = componentRefs.map((id) => `      <ComponentRef Id="${id}" />`).join('\n');
   return [
     '<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">',
-    `  <Package Name="${xmlEscape(packageName)}" Manufacturer="DeliverKit" Version="1.0.0.0" UpgradeCode="${packageGuid(packageName)}">`,
+    `  <Package Name="${xmlEscape(packageName)}" Manufacturer="DeliverKit" Version="${productVersion}" UpgradeCode="${packageGuid(packageName)}">`,
     '    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />',
     '    <MediaTemplate EmbedCab="yes" />',
     '    <Feature Id="MainFeature" Title="Application" Level="1">',
