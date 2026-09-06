@@ -158,7 +158,7 @@ function createRpmBuildScript(
   const buildCommand = launcher.buildKind === 'go'
     ? `mkdir -p /root/rpmbuild/SOURCES/app/bin && cd /root/rpmbuild/SOURCES/app && CGO_ENABLED=0 go build -trimpath -o /root/rpmbuild/SOURCES/app/bin/${packageName} .`
     : launcher.buildKind === 'node'
-      ? 'if [ -f /root/rpmbuild/SOURCES/app/package.json ]; then cd /root/rpmbuild/SOURCES/app; npm run build --if-present; npm prune --omit=dev; fi'
+      ? 'if [ -f /root/rpmbuild/SOURCES/app/package.json ]; then cd /root/rpmbuild/SOURCES/app; export PATH="$PWD/node_modules/.bin:$PATH"; echo "node_modules/.bin: $(ls node_modules/.bin 2>/dev/null | tr \'\\n\' \' \')"; npm run build --if-present; npm prune --omit=dev; fi'
       : ':';
   const rpmLauncher = launcher.buildKind === 'python'
     ? {
