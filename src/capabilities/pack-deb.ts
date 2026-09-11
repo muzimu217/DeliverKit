@@ -346,10 +346,11 @@ function dockerVerifyArgs(image: string, outputDir: string, artifactName: string
     `dpkg -i /packages/${artifactName}`,
     `test -x /usr/bin/${packageName}`,
     'set +e',
-    `timeout 5s /usr/bin/${packageName}`,
+    // 服务型入口会派生子进程；TERM 后 2 秒强制 KILL，避免验证容器被遗留子进程拖到外层超时。
+    `timeout -k 2s 5s /usr/bin/${packageName}`,
     'status=$?',
     'set -e',
-    'test "$status" -eq 0 -o "$status" -eq 124',
+    'test "$status" -eq 0 -o "$status" -eq 124 -o "$status" -eq 137',
   ].join('\n');
   return [
     'run', '--rm',

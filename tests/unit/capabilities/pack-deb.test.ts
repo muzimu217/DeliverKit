@@ -71,7 +71,7 @@ describe('pack_deb', () => {
     expect(calls).toHaveLength(2);
     expect(calls[0].args.at(-1)).toContain('dpkg-deb --root-owner-group --build');
     expect(calls[1].args.at(-1)).toContain('dpkg -i');
-    expect(calls[1].args.at(-1)).toContain('timeout 5s');
+    expect(calls[1].args.at(-1)).toContain('timeout -k 2s 5s');
   });
 
   it('reports an unavailable Docker daemon before attempting a build', async () => {

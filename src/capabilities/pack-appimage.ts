@@ -224,10 +224,10 @@ function dockerVerifyArgs(outputDir: string, artifactName: string): string[] {
     'command -v timeout',
     `test -x ${artifact}`,
     'set +e',
-    `timeout 5s ${artifact} --appimage-extract-and-run`,
+    `timeout -k 2s 5s ${artifact} --appimage-extract-and-run`,
     'status=$?',
     'set -e',
-    'if [ "$status" -eq 0 ] || [ "$status" -eq 124 ]; then exit 0; fi',
+    'if [ "$status" -eq 0 ] || [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then exit 0; fi',
     'export DEBIAN_FRONTEND=noninteractive',
     'apt-get update >/dev/null',
     'apt-get install -y --no-install-recommends squashfs-tools >/dev/null',
@@ -235,10 +235,10 @@ function dockerVerifyArgs(outputDir: string, artifactName: string): string[] {
     'test -n "$offset"',
     `unsquashfs -q -offset "$offset" -d /tmp/deliverkit-appimage ${artifact}`,
     'set +e',
-    'timeout 5s /tmp/deliverkit-appimage/AppRun',
+    'timeout -k 2s 5s /tmp/deliverkit-appimage/AppRun',
     'extracted_status=$?',
     'set -e',
-    'test "$extracted_status" -eq 0 -o "$extracted_status" -eq 124',
+    'test "$extracted_status" -eq 0 -o "$extracted_status" -eq 124 -o "$extracted_status" -eq 137',
   ].join('\n');
   return ['run', '--rm', '--platform', 'linux/amd64', '--mount', `type=bind,src=${path.resolve(outputDir)},dst=/packages,readonly`, VERIFY_IMAGE, 'bash', '-lc', script];
 }
