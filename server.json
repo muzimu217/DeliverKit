@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.muzimu217/DeliverKit",
+  "description": "Plan and verify multi-ecosystem packaging (Linux, Windows, macOS, HarmonyOS) for AI agents.",
+  "repository": {
+    "url": "https://github.com/muzimu217/DeliverKit",
+    "source": "github"
+  },
+  "version": "0.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "deliverkit-mcp",
+      "version": "0.3.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
