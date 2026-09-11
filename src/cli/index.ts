@@ -57,7 +57,7 @@ function finish(result: ForgeKitResult, options: JsonOption): void {
 program
   .name('deliverkit')
   .description('AI 交付大脑：规划一个产品到各生态的合法交付链路')
-  .version('0.3.0');
+  .version('0.3.1');
 
 program
   .command('doctor')

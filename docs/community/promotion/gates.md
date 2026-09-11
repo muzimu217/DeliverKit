@@ -24,7 +24,12 @@ git push origin main
 
 ## Gate 2 — 发布 npm 包（用户执行，需要 npm 账号）
 
-README 的接入指引是 `npx -y deliverkit-mcp`，**包不存在时该命令 404**。这是当前所有推广落地的第一杀手。
+> ✅ **2026-09-11 已完成**：`deliverkit-mcp@0.3.0` 已发布（https://www.npmjs.com/package/deliverkit-mcp），
+> 注册表干净安装 + MCP 握手（11 工具）验证通过；v0.3.0 Release 同日发布，tag 触发的 release-check 复核绿。
+> 凭据路径：granular token（read/write + bypass 2FA）→ `npm config set //registry.npmjs.org/:_authToken=…`；
+> 网页授权（`npm adduser --auth-type=web`）链接 5 分钟过期，不适合首次注册场景。
+
+README 的接入指引是 `npx -y deliverkit-mcp`，**包不存在时该命令 404**。这曾是所有推广落地的第一杀手。
 
 ```bash
 npm adduser                 # 本机当前 ENEEDAUTH，需先登录
