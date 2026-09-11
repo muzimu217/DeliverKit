@@ -36,7 +36,7 @@ npx -y --package=deliverkit-mcp -- deliverkit pack-deb . --plan Forge.md   # 构
 
 所以 DeliverKit **不假装一台机器产出全生态**——它懂得"每个安装包该在哪、用什么合法方式产出、怎么验证它真的能装能跑"，并指挥 AI 在正确的环境（本地 / CI 对应平台 runner / 云构建）里完成。这就绕开了各生态的硬约束，而不是去翻墙。
 
-## 当前能力（v0.3.0 · 可安装 MCP + Agent Skill + Linux 三目标闭环）
+## 当前能力（v0.3.1 · 可安装 MCP + Agent Skill + Linux 三目标闭环）
 
 DeliverKit 通过 MCP（stdio）暴露规划、编排与构建工具：
 
