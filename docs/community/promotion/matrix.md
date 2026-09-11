@@ -36,7 +36,7 @@
 | 1 | GitHub 仓库门面 | 全部 | topics、badge、README | 已加 topics、开启 Discussions；badge 见 gates.md | T0 | ✅ READY（topics、Discussions、README badge、Skill 入口已落库） |
 | 2 | GitHub Release | 全部 | release notes | v0.1.0 / v0.2.0 / **v0.3.0（2026-09-11 发布，release-check 绿）** | T0 | ✅ 已发布 |
 | 3 | awesome-mcp-servers | MCP 开发者 | 提交条目 + PR | fork → PR（材料已备） | T0 | 🟡 PR 已提交待审：https://github.com/punkpeye/awesome-mcp-servers/pull/14195（2026-09-11） |
-| 4 | 官方 MCP Registry | MCP 生态 | server.json + publish-registry workflow（OIDC） | 安装方式公开后发布 | T0 | 🟡 发布工作流已触发（2026-09-11），结果待复核 |
+| 4 | 官方 MCP Registry | MCP 生态 | server.json + publish-registry workflow（OIDC） | 安装方式公开后发布 | T0 | ✅ 已收录（io.github.muzimu217/DeliverKit v0.3.1，status: active，2026-09-11） |
 | 5 | Smithery / Glama | MCP 用户 | smithery.yaml / 提交表单 | 上架 | T0 | ⏸ 需注册账号后经门户提交 |
 | 6 | mcp.so | MCP 用户 | GitHub issue | 提 issue 收录 | T0 | 🟡 issue 已提交待收录：https://github.com/chatmcp/mcpso/issues/4070（2026-09-11） |
 | 7 | Show HN | 英文极客 | `copy/en-showhn.md` | 发帖 + 当天回评论 | T+1 上午（美东） | ⏸ 需账号 |
