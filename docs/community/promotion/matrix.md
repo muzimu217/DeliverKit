@@ -46,6 +46,7 @@
 | 11 | 掘金 / 知乎 | 中文长尾 | `copy/zh-juejin-zhihu.md` | 长文 | T+1w | ⏸ 需账号 |
 | 12 | WorkBuddy 腾讯频道 | WorkBuddy 用户 | `docs/community/post-deliverkit-intro.md` | 已定稿（2026-08-17） | 已发布窗口 | ✅ 文案就绪 |
 | 13 | 站点 | 搜索长尾 | site/（GitHub Pages 在线，生态卡片由知识包生成） | 保持内容与知识包同步（已自动化+漂移守卫） | T0 | ✅ 在线且自动同步 |
+| 14 | 中国独立开发者列表（程序员版） | 中文开发者 | 条目（需命令行产品） | PR 提交 | T0（2026-09-11 追发） | 🟡 PR 待审：https://github.com/1c7/chinese-independent-developer/pull/1374（主版面明文不收开发者工具，只能投程序员版） |
 
 ## 三、发布节奏
 
