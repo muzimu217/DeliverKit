@@ -1,6 +1,8 @@
 # DeliverKit
 
 [![CI](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml/badge.svg)](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml)
+[![npm](https://img.shields.io/npm/v/deliverkit-mcp)](https://www.npmjs.com/package/deliverkit-mcp)
+[![npm 下载/周](https://img.shields.io/npm/dw/deliverkit-mcp)](https://www.npmjs.com/package/deliverkit-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-stdio-blue)](https://modelcontextprotocol.io)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-green)](package.json)
@@ -8,6 +10,18 @@
 > **AI 交付大脑**：给 Agent 用的全生态交付编排工具。
 
 DeliverKit 不是一个"把 Linux 软件塞进 Windows 跑"的兼容层，而是一个给 AI（Agent）使用的**交付大脑**：它把各生态（Linux / Windows / 苹果 / 鸿蒙）的打包、签名、上架知识变成 AI 能读懂、能执行、能验证的能力，让 AI 理解用户需求后，规划出一条**合法合规的交付链路**，把已经开发好的产品送达每一个生态。
+
+## 采用信号（公开可验证，实时）
+
+徽章实时取自 npm 注册表；下列条目均带可点验链接。项目**无默认遥测**，所有采用数据都来自公开渠道（npm / GitHub / 目录收录），每周快照存档于 [metrics/](metrics/)。
+
+- **npm 周下载**：见顶部徽章（`npx -y deliverkit-mcp` 即可验证安装真实可用）
+- **官方 MCP Registry 已收录**：[io.github.muzimu217/DeliverKit](https://registry.modelcontextprotocol.io)（status: active，2026-09-11 起）
+- **中国独立开发者列表（程序员版）已收录**（[合并记录](https://github.com/1c7/chinese-independent-developer/pull/1374)，2026-09-14 起）
+- **每次 CI 都在真实交付**：[Actions](https://github.com/muzimu217/DeliverKit/actions/workflows/test.yml) 在 Ubuntu 22.04 与 24.04 两个 runner 上用真实 Docker 构建 deb/rpm/AppImage 并在干净容器安装运行验证，产出 `verified` 状态的 ReleaseManifest 证据（artifact 可下载）
+- awesome-mcp-servers 与 mcp.so 收录审核中
+
+> 发布于 2026-09-11。上面的徽章与链接就是当前采用状态的全部事实——我们只展示可验证的数据，不刷不夸。
 
 ## 30 秒上手
 
