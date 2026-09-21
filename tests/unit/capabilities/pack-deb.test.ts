@@ -357,3 +357,33 @@ describe('pack_deb 版本推导', () => {
     expect(result.artifacts?.[0]?.path).toMatch(/_9\.9\.9_all\.deb$/);
   });
 });
+
+describe('pack_deb 结果持久化', () => {
+  it('成功后自动写入 .deliverkit/results/pack-deb.json（manifest 可直接汇总）', async () => {
+    const project = await makeProject();
+    let runnerRan = false;
+    const runner: DockerRunner = (_command, args, options) => {
+      if (!runnerRan) {
+        runnerRan = true;
+        fs.mkdirSync(project.outputDir, { recursive: true });
+        const artifactName = (args.at(-1) ?? '').match(/\/output\/([^\s]+\.deb)/)?.[1];
+        if (artifactName) {
+          fs.writeFileSync(path.join(project.outputDir, artifactName), 'package');
+        }
+      }
+      return {
+        success: true, exitCode: 0, stdout: '', stderr: '',
+        logPath: path.join(project.outputDir, 'logs', options.logFileName ?? 'command.log'),
+      };
+    };
+
+    const result = packDeb({ sourceDir: project.sourceDir, planPath: project.planPath, outputDir: project.outputDir }, runner, () => true);
+
+    expect(result.status).toBe('success');
+    const resultsPath = path.join(project.sourceDir, '.deliverkit', 'results', 'pack-deb.json');
+    expect(fs.existsSync(resultsPath)).toBe(true);
+    const saved = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+    expect(saved.status).toBe('success');
+    expect(saved.artifacts[0].type).toBe('deb-package');
+  });
+});

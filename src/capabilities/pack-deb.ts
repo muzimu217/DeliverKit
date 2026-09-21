@@ -15,6 +15,7 @@ import { describeCommandFailure, logTail, runCommandWithLog, type CommandLogResu
 import { normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 import { resolveArtifactVersion } from './utils/version.js';
+import { persistResultJson } from './utils/results.js';
 
 const BUILD_IMAGE = 'ubuntu:22.04';
 const NODE_BUILD_IMAGE = 'node:18-bookworm';
@@ -150,7 +151,7 @@ export function packDeb(
   }
 
   const stat = fs.statSync(artifactPath);
-  return {
+  const result: ForgeKitResult = {
     status: 'success',
     artifacts: [{
       type: 'deb-package',
@@ -181,6 +182,8 @@ export function packDeb(
       '调用 generate_release_manifest 汇总各平台产物与验证证据',
     ],
   };
+  persistResultJson(request.sourceDir, 'pack-deb', result);
+  return result;
 }
 
 export interface LinuxLauncher {

@@ -20,7 +20,7 @@ const cases = readFileSync(resolve(root, 'docs/community/promotion/success-cases
 const unknown = !latest || latest.traffic_ok !== true;
 
 const report = `# 宣传与真实用户周报 · ${date}\n\n` +
-  `> 北极星：30 天 10 个真实外部用户成功交付。数据缺失标记 UNKNOWN，不当作 0。\n\n` +
+  `> 北极星 v2：30 天 3 个真实外部用户成功交付（2026-09-21 下调）。数据缺失标记 UNKNOWN，不当作 0。\n\n` +
   `## 数据健康\n\n` +
   `- 最近 8 天快照：${recent.length > 0 ? recent.length : 'UNKNOWN'}\n` +
   `- 最新快照：${latest?.date ?? 'UNKNOWN'}\n` +
@@ -28,11 +28,11 @@ const report = `# 宣传与真实用户周报 · ${date}\n\n` +
   `- npm 周下载：${latest?.npm_downloads_last_week ?? 'UNKNOWN（包未发布或 API 不可用）'}\n` +
   `- Stars / forks / issues：${latest ? `${latest.repo.stars} / ${latest.repo.forks} / ${latest.repo.open_issues}` : 'UNKNOWN'}\n\n` +
   `## 北极星进度\n\n` +
-  `- 已记录成功案例：${cases} / 10\n` +
-  `- 结论：${cases >= 10 ? '目标达成，继续收集复现证据。' : '目标未达成，优先邀请真实用户完成 Linux 首次交付。'}\n\n` +
+  `- 已记录成功案例：${cases} / 3\n` +
+  `- 结论：${cases >= 3 ? '目标达成，继续收集复现证据。' : '目标未达成，优先邀请真实用户完成 Linux 首次交付。'}\n\n` +
   `## 本周动作\n\n` +
   (unknown ? '- 修复 metrics 快照凭据或补跑 workflow；在数据恢复前不要解读流量下降。\n' : '- 对照 referrer 与 npm 下载复盘渠道质量。\n') +
-  (cases < 10 ? '- 在 Discussions 邀请用户按 success-cases.md 模板反馈一次真实交付。\n' : '- 选取已获授权案例更新推广文案。\n');
+  (cases < 3 ? '- 在 Discussions 邀请用户按 success-cases.md 模板反馈一次真实交付。\n' : '- 选取已获授权案例更新推广文案。\n');
 
 mkdirSync(outputDir, { recursive: true });
 writeFileSync(resolve(outputDir, `weekly-${date}.md`), report);

@@ -10,6 +10,7 @@ import { describeCommandFailure, logTail, runCommandWithLog } from './utils/comm
 import { amd64EmulationWarning, normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 import { resolveArtifactVersion } from './utils/version.js';
+import { persistResultJson } from './utils/results.js';
 
 // Pin 2026-09-05: appimage-builder 0.9.1（2021-07-08 构建，digest 固定）。
 // recipe（opt/libc loader、focal 源）是针对 0.9.x 行为写的；1.1.0 的 apt 部署
@@ -124,7 +125,7 @@ export function packAppImage(
   }
 
   const stat = fs.statSync(artifactPath);
-  return {
+  const result: ForgeKitResult = {
     status: 'success',
     artifacts: [{ type: 'appimage', path: artifactPath, checksum: sha256File(artifactPath), size_bytes: stat.size, metadata: { package_name: packageName, architecture: 'x86_64', build_image: BUILD_IMAGE, verification_image: VERIFY_IMAGE, verification_log: verify.logPath, verified_checks: ['AppImage extract-and-run or extracted AppRun fallback', 'AppRun launcher runtime'] } }],
     logs: { path: build.logPath, summary: 'Ubuntu x86_64 容器中完成 AppImage 构建；验证日志见产物 metadata.verification_log', full_available: true },
@@ -135,6 +136,8 @@ export function packAppImage(
       '调用 generate_release_manifest 汇总各平台产物与验证证据',
     ],
   };
+  persistResultJson(request.sourceDir, 'pack-appimage', result);
+  return result;
 }
 
 function createAppImageBuilderScript(packageName: string, packageVersion: string, artifactName: string, launcher: LinuxLauncher, entry: string | undefined): string {

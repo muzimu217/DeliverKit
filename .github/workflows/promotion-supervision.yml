@@ -43,11 +43,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/community-sla-check.mjs
+      - name: Check external channel feedback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/channel-feedback.mjs
       - name: Upload SLA report
         uses: actions/upload-artifact@v4
         with:
           name: community-sla-${{ github.run_id }}
-          path: metrics/reports/community-sla-*.md
+          path: |
+            metrics/reports/community-sla-*.md
+            metrics/reports/channel-feedback-*.md
 
   release-gate:
     if: github.event_name == 'workflow_dispatch' || github.event.schedule == '30 1 * * 2'

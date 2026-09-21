@@ -10,6 +10,7 @@ import { describeCommandFailure, logTail, runCommandWithLog } from './utils/comm
 import { normalizeDockerProbe, probeDocker, type DockerProbeFn } from './utils/docker.js';
 import { assertSourceDir, PathValidationError, pathExists } from './utils/filesystem.js';
 import { resolveArtifactVersion } from './utils/version.js';
+import { persistResultJson } from './utils/results.js';
 
 const IMAGE = 'rockylinux:9';
 const BUILD_TIMEOUT_MS = 10 * 60_000;
@@ -126,7 +127,7 @@ export function packRpm(
   }
 
   const stat = fs.statSync(artifactPath);
-  return {
+  const result: ForgeKitResult = {
     status: 'success',
     artifacts: [{
       type: 'rpm-package', path: artifactPath, checksum: sha256File(artifactPath), size_bytes: stat.size,
@@ -139,6 +140,8 @@ export function packRpm(
       '调用 generate_release_manifest 汇总各平台产物与验证证据',
     ],
   };
+  persistResultJson(request.sourceDir, 'pack-rpm', result);
+  return result;
 }
 
 function createRpmBuildScript(
