@@ -14,7 +14,9 @@ import { persistResultJson } from './utils/results.js';
 
 const IMAGE = 'rockylinux:9';
 const BUILD_TIMEOUT_MS = 10 * 60_000;
-const VERIFY_TIMEOUT_MS = 5 * 60_000;
+// 验证容器需要重新刷新 dnf 仓库元数据再装运行时依赖，慢 runner（ubuntu-22.04 实测两次）可轻易吃满 5 分钟，
+// 与应用本身无关；放宽到与构建相同的 10 分钟上限，5 秒应用观察窗口不变。
+const VERIFY_TIMEOUT_MS = 10 * 60_000;
 
 export interface PackRpmRequest {
   sourceDir: string;
