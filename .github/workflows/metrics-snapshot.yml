@@ -53,7 +53,12 @@ jobs:
             exit 0
           fi
 
-          gh api "repos/$REPO" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, open_issues: .open_issues_count}' > repo.json
+          # METRICS_TOKEN 失效时这里会 401 Bad credentials——与 traffic 一样降级为 null，
+          # 快照仍落盘（traffic_ok: false），不能让单个 API 失败杀掉整个快照任务。
+          if ! gh api "repos/$REPO" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, open_issues: .open_issues_count}' > repo.json 2>/dev/null; then
+            echo '{"stars":null,"forks":null,"watchers":null,"open_issues":null}' > repo.json
+            echo '::warning::repo API 不可用（token 失效或权限不足）：repo 指标记为 null'
+          fi
 
           if curl -sf "https://api.npmjs.org/downloads/point/last-week/deliverkit-mcp" > npm.json; then
             NPM=$(jq -c '.downloads' npm.json)
