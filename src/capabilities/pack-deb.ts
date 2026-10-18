@@ -29,6 +29,8 @@ export interface PackDebRequest {
   outputDir?: string;
   packageName?: string;
   packageVersion?: string;
+  /** 同时安装 systemd 服务单元：unit 文件 + postinst 自动 enable --now，验证阶段含 systemd-analyze 语法校验。 */
+  systemd?: boolean;
 }
 
 export type DockerRunner = (
@@ -79,6 +81,7 @@ export function packDeb(
     return failure('build_config_invalid', '项目名无法转换为合法 Debian 包名', '传入 package_name（小写字母、数字和连字符）');
   }
   const packageVersion = resolveArtifactVersion(request.packageVersion, contractResult.contract.project.version);
+  const systemd = request.systemd === true;
 
   const launch = resolveLinuxLauncher(contractResult.contract, packageName, request.sourceDir);
   if (!launch.ok) {
@@ -109,7 +112,7 @@ export function packDeb(
   const runStamp = logStamp();
   const build = runner(
     'docker',
-    dockerRunArgs(buildImage, request.sourceDir, outputDir, createDebBuildScript(packageName, artifactName, packageVersion, launch.value, architecture)),
+    dockerRunArgs(buildImage, request.sourceDir, outputDir, createDebBuildScript(packageName, artifactName, packageVersion, launch.value, architecture, systemd)),
     { timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-deb-build-${runStamp}.log` }
   );
   if (!build.success) {
@@ -133,7 +136,7 @@ export function packDeb(
 
   const verify = runner(
     'docker',
-    dockerVerifyArgs(VERIFY_IMAGE, outputDir, artifactName, packageName, launch.value.runtimePackages),
+    dockerVerifyArgs(VERIFY_IMAGE, outputDir, artifactName, packageName, launch.value.runtimePackages, systemd),
     { timeout: VERIFY_TIMEOUT_MS, logDir, logFileName: `${packageName}-deb-verify-${runStamp}.log` }
   );
   if (!verify.success) {
@@ -163,7 +166,9 @@ export function packDeb(
         build_image: buildImage,
         verification_image: VERIFY_IMAGE,
         verification_log: verify.logPath,
-        verified_checks: ['dpkg -i', 'launcher executable', 'launcher runtime'],
+        verified_checks: systemd
+          ? ['dpkg -i', 'launcher executable', 'launcher runtime', 'systemd-analyze verify']
+          : ['dpkg -i', 'launcher executable', 'launcher runtime'],
       },
     }],
     logs: {
@@ -277,7 +282,7 @@ export function resolveLinuxLauncher(contract: ForgeContract, packageName: strin
   };
 }
 
-function createDebBuildScript(packageName: string, artifactName: string, packageVersion: string, launcher: LinuxLauncher, architecture: string): string {
+function createDebBuildScript(packageName: string, artifactName: string, packageVersion: string, launcher: LinuxLauncher, architecture: string, systemd: boolean): string {
   const dependencyInstall = launcher.buildKind === 'python'
     ? `if [ -f /package/opt/${packageName}/requirements.txt ]; then /package/opt/${packageName}/venv/bin/pip install --no-cache-dir -r /package/opt/${packageName}/requirements.txt; fi`
     : launcher.buildKind === 'node'
@@ -292,6 +297,22 @@ function createDebBuildScript(packageName: string, artifactName: string, package
   const installTools = launcher.buildKind === 'node'
     ? ':'
     : `apt-get update\napt-get install -y --no-install-recommends dpkg-dev ${launcher.buildPackages.join(' ')}`;
+  const maintainerScripts = systemd ? createSystemdMaintainerScripts(packageName) : null;
+  const systemdStaging = maintainerScripts
+    ? [
+        'mkdir -p /package/lib/systemd/system',
+        `cat > /package/lib/systemd/system/${packageName}.service <<'DELIVERKIT_UNIT'`,
+        ...createSystemdUnit(packageName).split('\n'),
+        'DELIVERKIT_UNIT',
+        `cat > /package/DEBIAN/postinst <<'DELIVERKIT_POSTINST'`,
+        ...maintainerScripts.postinst.split('\n'),
+        'DELIVERKIT_POSTINST',
+        `cat > /package/DEBIAN/prerm <<'DELIVERKIT_PRERM'`,
+        ...maintainerScripts.prerm.split('\n'),
+        'DELIVERKIT_PRERM',
+        'chmod 0755 /package/DEBIAN/postinst /package/DEBIAN/prerm',
+      ]
+    : [];
 
   return [
     'set -eu',
@@ -307,8 +328,56 @@ function createDebBuildScript(packageName: string, artifactName: string, package
     `printf '%s\\n' 'Package: ${packageName}' 'Version: ${packageVersion}' 'Section: utils' 'Priority: optional' 'Architecture: ${architecture}' 'Maintainer: DeliverKit <noreply@deliverkit.dev>' 'Depends: ${launcher.runtimePackages.join(', ')}' 'Description: ${packageName} application package built by DeliverKit' > /package/DEBIAN/control`,
     `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(launcher.command)} > /package/usr/bin/${packageName}`,
     `chmod 0755 /package/usr/bin/${packageName}`,
+    ...systemdStaging,
     `dpkg-deb --root-owner-group --build /package /output/${artifactName}`,
   ].join('\n');
+}
+
+/** 生成 systemd unit 内容（纯函数，供构建脚本与单测复用）。 */
+export function createSystemdUnit(packageName: string): string {
+  return [
+    '[Unit]',
+    `Description=${packageName} service (DeliverKit)`,
+    'After=network.target',
+    '',
+    '[Service]',
+    'Type=simple',
+    `ExecStart=/usr/bin/${packageName}`,
+    'Restart=on-failure',
+    'RestartSec=5',
+    '',
+    '[Install]',
+    'WantedBy=multi-user.target',
+    '',
+  ].join('\n');
+}
+
+/**
+ * 生成 deb 维护脚本：真实主机上 enable --now 一次到位；
+ * 构建容器等无 systemd 环境降级为仅安装单元文件并提示，不阻塞 dpkg 安装。
+ */
+export function createSystemdMaintainerScripts(packageName: string): { postinst: string; prerm: string } {
+  const guard = 'if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then';
+  const postinst = [
+    '#!/bin/sh',
+    'set -eu',
+    guard,
+    '  systemctl daemon-reload',
+    `  systemctl enable --now ${packageName}.service`,
+    'else',
+    `  echo '${packageName}: systemd not active; unit installed but not enabled (run: systemctl enable --now ${packageName})' >&2`,
+    'fi',
+    '',
+  ].join('\n');
+  const prerm = [
+    '#!/bin/sh',
+    'set -eu',
+    guard,
+    `  systemctl stop ${packageName}.service || true`,
+    'fi',
+    '',
+  ].join('\n');
+  return { postinst, prerm };
 }
 
 function readPackageJson(sourceDir: string): { scripts?: { start?: string } } | null {
@@ -340,14 +409,16 @@ function dockerRunArgs(image: string, sourceDir: string, outputDir: string, scri
   ];
 }
 
-function dockerVerifyArgs(image: string, outputDir: string, artifactName: string, packageName: string, runtimePackages: string[]): string[] {
+function dockerVerifyArgs(image: string, outputDir: string, artifactName: string, packageName: string, runtimePackages: string[], systemd: boolean): string[] {
+  const verifyPackages = systemd ? [...runtimePackages, 'systemd'] : runtimePackages;
   const script = [
     'set -eu',
     'export DEBIAN_FRONTEND=noninteractive',
     'apt-get update',
-    `apt-get install -y --no-install-recommends ${runtimePackages.join(' ')} coreutils`,
+    `apt-get install -y --no-install-recommends ${verifyPackages.join(' ')} coreutils`,
     `dpkg -i /packages/${artifactName}`,
     `test -x /usr/bin/${packageName}`,
+    ...(systemd ? [`systemd-analyze verify /lib/systemd/system/${packageName}.service`] : []),
     'set +e',
     // 服务型入口会派生子进程；TERM 后 2 秒强制 KILL，避免验证容器被遗留子进程拖到外层超时。
     `timeout -k 2s 5s /usr/bin/${packageName}`,
