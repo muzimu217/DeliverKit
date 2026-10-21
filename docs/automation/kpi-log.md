@@ -12,4 +12,4 @@
 - 2026-10-17 | 38 | 1/0 | 无新动态 | npm 统计 10-13 起滞后归零，对照实验（express/typescript 同窗口为 0）证实非断崖
 - 2026-10-18 | 27（新滚动窗口 10-10→10-16，环比 -29%）| 1/0 | PR 仍等 quality 评估 | 用户在线授权解锁；systemd 服务安装落地（fpm 最高赞痛点）
 - 2026-10-18（12:03 第二次运行）| 27（10-10→10-16 滚动窗，持平；10-12→10-18 窗口 17）| 1/0 | PR 无新动态，Glama quality 仍待用户 | 解锁后首个完整五段循环：pack_rpm systemd 对称支持
-- 2026-10-18（渠道里程碑）| 27 | 1/0 | mcp-marketplace.io 上架（claimed 导入，安审 4.6/10「Use Caution」，10 findings）；AI 代理经其 MCP 端实测可检索到 DeliverKit | 响应扫描完成修复（js-yaml 5.5.0 / flask 3.1.3 / 质量项）；待推送后请求重扫
+- 2026-10-18（渠道里程碑）| 27 | 1/0 | mcp-marketplace.io 上架（claimed 导入，安审 4.6/10「Use Caution」，10 findings）；AI 代理经其 MCP 端实测可检索到 DeliverKit | 响应扫描完成修复（js-yaml 5.5.0 / flask 固件 3.0.3（CI 修订：3.1.3 需 Py≥3.9 与 AppImage 链 Py3.8 不兼容）/ 质量项）；待推送后请求重扫
