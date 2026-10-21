@@ -65,3 +65,6 @@ src/templates/**/*.d.ts
 .video_agent/
 .v2c/
 out/
+
+# WorkBuddy agent memory (review notes live here, not product code)
+.workbuddy/
