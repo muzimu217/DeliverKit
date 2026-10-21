@@ -25,7 +25,7 @@ describe('inspectProject 缓存集成', () => {
   it('首次调用应执行分析', async () => {
     // 准备 Python 项目
     fs.writeFileSync(path.join(tmpDir, 'app.py'), 'print("hello")');
-    fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'flask==3.1.3');
+    fs.writeFileSync(path.join(tmpDir, 'requirements.txt'), 'flask==3.0.3');
 
     const result = await inspectProject(tmpDir);
 

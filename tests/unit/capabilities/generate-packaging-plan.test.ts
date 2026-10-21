@@ -28,7 +28,7 @@ describe('generate_packaging_plan（知识包驱动）', () => {
   it('为 Python 项目生成 deb 交付计划（Forge.md）', async () => {
     const dir = makeProject('python-deb');
     fs.writeFileSync(path.join(dir, 'app.py'), 'from flask import Flask');
-    fs.writeFileSync(path.join(dir, 'requirements.txt'), 'flask==3.1.3\n');
+    fs.writeFileSync(path.join(dir, 'requirements.txt'), 'flask==3.0.3\n');
 
     const result = await generatePackagingPlan(dir, ['deb']);
 
