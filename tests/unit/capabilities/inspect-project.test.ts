@@ -41,7 +41,7 @@ describe('M2: inspect_project', () => {
   it('Python 项目识别（requirements.txt）', async () => {
     const dir = path.join(tmpDir, 'python-req');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'requirements.txt'), 'flask==2.3.0\n');
+    fs.writeFileSync(path.join(dir, 'requirements.txt'), 'flask==3.0.3\n');
     fs.writeFileSync(path.join(dir, 'main.py'), 'print("hello")');
 
     const result = await inspectProject(dir);

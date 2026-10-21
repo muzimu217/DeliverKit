@@ -3,7 +3,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { contractIncludesArtifact, loadForgeContract } from './forge-contract.js';
-import { resolveLinuxLauncher, logStamp, type DockerRunner, type LinuxLauncher } from './pack-deb.js';
+import { createSystemdMaintainerScripts, createSystemdUnit, resolveLinuxLauncher, logStamp, type DockerRunner, type LinuxLauncher } from './pack-deb.js';
 import type { ErrorCode, ForgeKitResult } from './types.js';
 import { sha256File } from './utils/checksum.js';
 import { describeCommandFailure, logTail, runCommandWithLog } from './utils/command.js';
@@ -24,6 +24,8 @@ export interface PackRpmRequest {
   outputDir?: string;
   packageName?: string;
   packageVersion?: string;
+  /** 同时安装 systemd 服务单元：unit 进 %files，%post 在真实主机 enable --now，验证阶段含 systemd-analyze 语法校验。 */
+  systemd?: boolean;
 }
 
 export function packRpm(
@@ -62,6 +64,7 @@ export function packRpm(
     return failure('build_config_invalid', '项目名无法转换为合法 RPM 包名', '传入 package_name（小写字母、数字和连字符）');
   }
   const packageVersion = resolveArtifactVersion(request.packageVersion, plan.contract.project.version);
+  const systemd = request.systemd === true;
   const launcher = resolveLinuxLauncher(plan.contract, packageName, request.sourceDir);
   if (!launcher.ok) {
     return failure(launcher.code, launcher.reason, launcher.suggestedFix);
@@ -87,7 +90,7 @@ export function packRpm(
   const logDir = path.join(outputDir, 'logs');
   const runStamp = logStamp();
   const sourceOutputPath = relativePathWithin(request.sourceDir, outputDir);
-  const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createRpmBuildScript(packageName, packageVersion, architecture, launcher.value, sourceOutputPath)), {
+  const build = runner('docker', dockerBuildArgs(request.sourceDir, outputDir, createRpmBuildScript(packageName, packageVersion, architecture, launcher.value, sourceOutputPath, systemd)), {
     timeout: BUILD_TIMEOUT_MS, logDir, logFileName: `${packageName}-rpm-build-${runStamp}.log`,
   });
   if (!build.success) {
@@ -111,7 +114,7 @@ export function packRpm(
   }
   const artifactName = path.basename(artifactPath);
 
-  const verify = runner('docker', dockerVerifyArgs(outputDir, artifactName, packageName, launcher.value.runtimePackages), {
+  const verify = runner('docker', dockerVerifyArgs(outputDir, artifactName, packageName, launcher.value.runtimePackages, systemd), {
     timeout: VERIFY_TIMEOUT_MS, logDir, logFileName: `${packageName}-rpm-verify-${runStamp}.log`,
   });
   if (!verify.success) {
@@ -133,7 +136,7 @@ export function packRpm(
     status: 'success',
     artifacts: [{
       type: 'rpm-package', path: artifactPath, checksum: sha256File(artifactPath), size_bytes: stat.size,
-      metadata: { package_name: packageName, build_image: IMAGE, verification_image: IMAGE, verification_log: verify.logPath, verified_checks: ['rpm -Uvh', 'launcher executable', 'launcher runtime'] },
+      metadata: { package_name: packageName, build_image: IMAGE, verification_image: IMAGE, verification_log: verify.logPath, verified_checks: systemd ? ['rpm -Uvh', 'launcher executable', 'launcher runtime', 'systemd-analyze verify'] : ['rpm -Uvh', 'launcher executable', 'launcher runtime'] },
     }],
     logs: { path: build.logPath, summary: 'Rocky Linux 隔离容器中完成 rpm 构建；验证日志见产物 metadata.verification_log', full_available: true },
     decision_basis: { target_platform: 'linux/rpm', target_version: 'Rocky Linux 9', base_image: IMAGE, build_method: 'Docker 隔离 rpmbuild + 干净 Rocky Linux 容器安装运行验证' },
@@ -151,7 +154,8 @@ function createRpmBuildScript(
   packageVersion: string,
   architecture: string,
   launcher: LinuxLauncher,
-  sourceOutputPath: string | null
+  sourceOutputPath: string | null,
+  systemd: boolean
 ): string {
   const buildPackages = rpmBuildPackages(launcher);
   const runtimePackages = rpmRuntimePackages(launcher);
@@ -174,8 +178,24 @@ function createRpmBuildScript(
         ),
       }
     : launcher;
+  const systemdInstallLines = systemd
+    ? [
+        'mkdir -p %{buildroot}/usr/lib/systemd/system',
+        `cat > %{buildroot}/usr/lib/systemd/system/${packageName}.service <<'DELIVERKIT_UNIT'`,
+        ...createSystemdUnit(packageName).split('\n'),
+        'DELIVERKIT_UNIT',
+      ]
+    : [];
+  const rpmScripts = systemd ? createSystemdMaintainerScripts(packageName, 'rpm') : null;
+  // EL9 单元目录为 /usr/lib/systemd/system（UsrMove）；维护脚本体复用共享实现（rpm 变体：$1=0 为 erase），仅去掉 shebang 由 rpmbuild 包装。
+  const postScriptlet = rpmScripts ? rpmScripts.postinst.split('\n').slice(1) : [];
+  const preunScriptlet = rpmScripts ? rpmScripts.prerm.split('\n').slice(1) : [];
+  const postunScriptlet = rpmScripts ? rpmScripts.postrm.split('\n').slice(1) : [];
   const specLines = [
-    `Name: ${packageName}`, `Version: ${packageVersion}`, 'Release: 1%{?dist}', 'Summary: DeliverKit application package', 'License: MIT', `BuildArch: ${architecture}`, `Requires: ${runtimePackages.join(', ')}`, '', '%description', `${packageName} application package built by DeliverKit.`, '', '%prep', '', '%build', buildCommand, '', '%install', 'rm -rf %{buildroot}', `mkdir -p %{buildroot}/opt/${packageName} %{buildroot}/usr/bin`, `cp -a %{_sourcedir}/app/. %{buildroot}/opt/${packageName}/`, `rm -rf %{buildroot}/opt/${packageName}/.git %{buildroot}/opt/${packageName}/.deliverkit`, `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(rpmLauncher.command)} > %{buildroot}/usr/bin/${packageName}`, `chmod 0755 %{buildroot}/usr/bin/${packageName}`, '', '%files', `/opt/${packageName}`, `/usr/bin/${packageName}`,
+    `Name: ${packageName}`, `Version: ${packageVersion}`, 'Release: 1%{?dist}', 'Summary: DeliverKit application package', 'License: MIT', `BuildArch: ${architecture}`, `Requires: ${runtimePackages.join(', ')}`, '', '%description', `${packageName} application package built by DeliverKit.`, '', '%prep', '', '%build', buildCommand, '', '%install', 'rm -rf %{buildroot}', `mkdir -p %{buildroot}/opt/${packageName} %{buildroot}/usr/bin`, `cp -a %{_sourcedir}/app/. %{buildroot}/opt/${packageName}/`, `rm -rf %{buildroot}/opt/${packageName}/.git %{buildroot}/opt/${packageName}/.deliverkit`, `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(rpmLauncher.command)} > %{buildroot}/usr/bin/${packageName}`, `chmod 0755 %{buildroot}/usr/bin/${packageName}`, ...systemdInstallLines, '', '%files', `/opt/${packageName}`, `/usr/bin/${packageName}`, ...(systemd ? [`/usr/lib/systemd/system/${packageName}.service`] : []),
+    ...(systemd ? ['', '%post', ...postScriptlet] : []),
+    ...(systemd ? ['', '%preun', ...preunScriptlet] : []),
+    ...(systemd ? ['', '%postun', ...postunScriptlet] : []),
   ];
   return [
     'set -eu',
@@ -200,10 +220,11 @@ function dockerBuildArgs(sourceDir: string, outputDir: string, script: string): 
   return ['run', '--rm', '--mount', `type=bind,src=${path.resolve(sourceDir)},dst=/workspace,readonly`, '--mount', `type=bind,src=${path.resolve(outputDir)},dst=/output`, IMAGE, 'bash', '-lc', script];
 }
 
-function dockerVerifyArgs(outputDir: string, artifactName: string, packageName: string, runtimePackages: string[]): string[] {
+function dockerVerifyArgs(outputDir: string, artifactName: string, packageName: string, runtimePackages: string[], systemd: boolean): string[] {
   // 服务型入口会派生子进程；只发 TERM 可能让容器一直存活到外层 5 分钟超时。
   // 5 秒观察窗口后再留 2 秒优雅退出，随后强制 KILL，验证的可证明性不能靠超时碰运气。
-  const script = ['set -eu', `dnf -y install ${rpmRuntimePackages({ runtimePackages }).join(' ')}`, 'command -v timeout', `rpm -Uvh --nosignature /packages/${artifactName}`, `test -x /usr/bin/${packageName}`, 'set +e', `timeout -k 2s 5s /usr/bin/${packageName}`, 'status=$?', 'set -e', 'test "$status" -eq 0 -o "$status" -eq 124 -o "$status" -eq 137'].join('\n');
+  const installPackages = systemd ? [...rpmRuntimePackages({ runtimePackages }), 'systemd'] : rpmRuntimePackages({ runtimePackages });
+  const script = ['set -eu', `dnf -y install ${installPackages.join(' ')}`, 'command -v timeout', `rpm -Uvh --nosignature /packages/${artifactName}`, `test -x /usr/bin/${packageName}`, ...(systemd ? [`systemd-analyze verify /usr/lib/systemd/system/${packageName}.service`] : []), 'set +e', `timeout -k 2s 5s /usr/bin/${packageName}`, 'status=$?', 'set -e', 'test "$status" -eq 0 -o "$status" -eq 124 -o "$status" -eq 137'].join('\n');
   return ['run', '--rm', '--mount', `type=bind,src=${path.resolve(outputDir)},dst=/packages,readonly`, IMAGE, 'bash', '-lc', script];
 }
 

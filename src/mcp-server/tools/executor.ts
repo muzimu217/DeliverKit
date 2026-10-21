@@ -106,6 +106,7 @@ function dispatch(
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
         packageVersion: input.package_version as string | undefined,
+        systemd: input.systemd === true,
       });
 
     case 'pack_rpm':
@@ -115,6 +116,7 @@ function dispatch(
         outputDir: input.output_dir as string | undefined,
         packageName: input.package_name as string | undefined,
         packageVersion: input.package_version as string | undefined,
+        systemd: input.systemd === true,
       });
 
     case 'pack_appimage':

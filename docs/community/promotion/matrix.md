@@ -47,6 +47,7 @@
 | 12 | WorkBuddy 腾讯频道 | WorkBuddy 用户 | `docs/community/post-deliverkit-intro.md` | 已定稿（2026-08-17） | 已发布窗口 | ✅ 文案就绪 |
 | 13 | 站点 | 搜索长尾 | site/（GitHub Pages 在线，生态卡片由知识包生成） | 保持内容与知识包同步（已自动化+漂移守卫） | T0 | ✅ 在线且自动同步 |
 | 14 | 中国独立开发者列表（程序员版） | 中文开发者 | 条目（需命令行产品） | PR 提交 | T0（2026-09-11 追发） | ✅ 已收录（PR #1374 于 2026-09-14 合并；主版面明文不收开发者工具，条目在程序员版） |
+| 15 | MCP Marketplace（mcp-marketplace.io） | MCP 用户 / AI 代理 | claimed 导入 listing；安审报告 | 维护 listing；修复完成 → 待推送后请求重扫（dashboard/support） | T0（2026-10-18 核验） | ✅ 已上架（claimed；安审 4.6/10「Use Caution」，findings 已修复；AI 代理可经其 `/api/mcp/mcp` 的 search_servers 检索到） |
 
 ## 三、发布节奏
 

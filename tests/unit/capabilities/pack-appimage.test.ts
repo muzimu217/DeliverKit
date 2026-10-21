@@ -28,7 +28,7 @@ describe('pack_appimage', () => {
     const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deliverkit-appimage-'));
     tempDirs.push(sourceDir);
     fs.writeFileSync(path.join(sourceDir, 'app.py'), 'print("ready")');
-    fs.writeFileSync(path.join(sourceDir, 'requirements.txt'), 'flask==2.3.0\n');
+    fs.writeFileSync(path.join(sourceDir, 'requirements.txt'), 'flask==3.0.3\n');
     const plan = await generatePackagingPlan(sourceDir, ['appimage']);
     const outputDir = path.join(sourceDir, 'out');
     const calls: string[][] = [];

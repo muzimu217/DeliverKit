@@ -57,8 +57,8 @@ DeliverKit 通过 MCP（stdio）暴露规划、编排与构建工具：
 - **`inspect_project`** —— 识别项目语言、入口与已有打包配置，给出跨生态交付目标建议。识别失败或识别错误时，可传入 `language`（python/javascript/typescript/go/arkts）与 `entrypoints` 手动指定，结果直接进入 Forge.md 契约，不再死路。
 - **`generate_packaging_plan`** —— 生成一份可评审的 `Forge.md` 交付契约（目标生态 / 产物 / 决策依据 / 风险）。
 - **`get_ecosystem_knowledge`** —— 读取已注册生态的结构化打包、签名、分发与验证规则。
-- **`pack_deb`** —— 按 `Forge.md` 在隔离 Ubuntu 容器中构建 `.deb`，并在新容器执行安装和运行验证。
-- **`pack_rpm`** —— 按 `Forge.md` 在隔离 Rocky Linux 容器中构建 `.rpm`，并在新容器执行安装和运行验证。
+- **`pack_deb`** —— 按 `Forge.md` 在隔离 Ubuntu 容器中构建 `.deb`，并在新容器执行安装和运行验证。支持 `systemd` 参数：同时安装 systemd 服务单元与维护脚本（真实主机上 postinst 自动 `enable --now`），验证阶段含 `systemd-analyze` 语法校验。
+- **`pack_rpm`** —— 按 `Forge.md` 在隔离 Rocky Linux 容器中构建 `.rpm`，并在新容器执行安装和运行验证。支持 `systemd` 参数：unit 进 `%files`（`/usr/lib/systemd/system`），`%post` 在真实主机自动 `enable --now`，验证阶段含 `systemd-analyze` 语法校验。
 - **`pack_appimage`** —— 按 `Forge.md` 在隔离 Ubuntu x86_64 容器中构建 AppImage，并执行 extract-and-run/AppRun 验证。
 - **`generate_ci_workflow`** —— 按 `Forge.md` 生成 GitHub Actions 多平台工作流；Windows/Apple 证书只通过 secrets 注入，HarmonyOS job 要求 Linux self-hosted DevEco runner。
 - **`pack_windows_msi`** —— 在 Windows runner 使用 WiX 构建 MSI，执行 Authenticode 签名与静默安装/卸载验证。

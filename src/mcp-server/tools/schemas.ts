@@ -174,6 +174,7 @@ export const PackDebInputSchema = z.object({
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
   package_name: z.string().optional().describe('Debian 包名；缺省时使用项目名'),
+  systemd: z.boolean().optional().describe('把入口封装为 systemd 服务：安装 unit 文件与维护脚本（postinst 在真实主机自动 enable --now），验证阶段增加 systemd-analyze 语法校验'),
 });
 
 export const PackDebOutputSchema = DeliverKitResultSchema;
@@ -185,6 +186,7 @@ export const PackRpmInputSchema = z.object({
   plan_path: PlanPathSchema,
   output_dir: z.string().optional().describe('产物输出目录，默认 <source_dir>/.deliverkit/artifacts'),
   package_name: z.string().optional().describe('RPM 包名；缺省时使用项目名'),
+  systemd: z.boolean().optional().describe('把入口封装为 systemd 服务：unit 进 %files（/usr/lib/systemd/system），%post 在真实主机自动 enable --now，验证阶段增加 systemd-analyze 语法校验'),
 });
 
 export const PackRpmOutputSchema = DeliverKitResultSchema;

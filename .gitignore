@@ -59,3 +59,12 @@ src/templates/**/*.d.ts
 *.rpm
 *.tar.gz
 *.zip
+
+# ZCode plugin state (regenerated per session)
+.mimosa/
+.video_agent/
+.v2c/
+out/
+
+# WorkBuddy agent memory (review notes live here, not product code)
+.workbuddy/

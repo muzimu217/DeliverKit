@@ -3,4 +3,4 @@ name = "demo-api"
 version = "1.0.0"
 description = "ForgeKit sample Python project for E2E testing"
 requires-python = ">=3.10"
-dependencies = ["flask==2.3.0"]
+dependencies = ["flask==3.0.3"]
