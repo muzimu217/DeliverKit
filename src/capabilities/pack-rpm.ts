@@ -184,13 +184,16 @@ function createRpmBuildScript(
         'DELIVERKIT_UNIT',
       ]
     : [];
-  // EL9 单元目录为 /usr/lib/systemd/system（UsrMove）；维护脚本体复用 deb 侧实现，仅去掉 shebang。
-  const postScriptlet = systemd ? createSystemdMaintainerScripts(packageName).postinst.split('\n').slice(1) : [];
-  const preunScriptlet = systemd ? createSystemdMaintainerScripts(packageName).prerm.split('\n').slice(1) : [];
+  const rpmScripts = systemd ? createSystemdMaintainerScripts(packageName, 'rpm') : null;
+  // EL9 单元目录为 /usr/lib/systemd/system（UsrMove）；维护脚本体复用共享实现（rpm 变体：$1=0 为 erase），仅去掉 shebang 由 rpmbuild 包装。
+  const postScriptlet = rpmScripts ? rpmScripts.postinst.split('\n').slice(1) : [];
+  const preunScriptlet = rpmScripts ? rpmScripts.prerm.split('\n').slice(1) : [];
+  const postunScriptlet = rpmScripts ? rpmScripts.postrm.split('\n').slice(1) : [];
   const specLines = [
     `Name: ${packageName}`, `Version: ${packageVersion}`, 'Release: 1%{?dist}', 'Summary: DeliverKit application package', 'License: MIT', `BuildArch: ${architecture}`, `Requires: ${runtimePackages.join(', ')}`, '', '%description', `${packageName} application package built by DeliverKit.`, '', '%prep', '', '%build', buildCommand, '', '%install', 'rm -rf %{buildroot}', `mkdir -p %{buildroot}/opt/${packageName} %{buildroot}/usr/bin`, `cp -a %{_sourcedir}/app/. %{buildroot}/opt/${packageName}/`, `rm -rf %{buildroot}/opt/${packageName}/.git %{buildroot}/opt/${packageName}/.deliverkit`, `printf '%s\\n' '#!/bin/sh' 'set -eu' ${shellQuote(rpmLauncher.command)} > %{buildroot}/usr/bin/${packageName}`, `chmod 0755 %{buildroot}/usr/bin/${packageName}`, ...systemdInstallLines, '', '%files', `/opt/${packageName}`, `/usr/bin/${packageName}`, ...(systemd ? [`/usr/lib/systemd/system/${packageName}.service`] : []),
     ...(systemd ? ['', '%post', ...postScriptlet] : []),
     ...(systemd ? ['', '%preun', ...preunScriptlet] : []),
+    ...(systemd ? ['', '%postun', ...postunScriptlet] : []),
   ];
   return [
     'set -eu',

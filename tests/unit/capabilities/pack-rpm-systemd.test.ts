@@ -60,9 +60,12 @@ describe('pack_rpm systemd', () => {
     expect(spec).toContain('%post');
     expect(spec).toContain('systemctl enable --now');
     expect(spec).toContain('%preun');
+    expect(spec).toContain('[ "$1" = 0 ]');
     expect(spec).toContain('systemctl stop');
+    expect(spec).toContain('%postun');
+    expect(spec).toContain('systemctl disable');
     expect(verify).toContain('systemd-analyze verify /usr/lib/systemd/system/');
-    expect(verify).toContain('systemd');
+    expect(verify).toMatch(/dnf -y install [^\n]*\bsystemd\b/);
     expect(result.artifacts?.[0].metadata?.verified_checks).toContain('systemd-analyze verify');
   });
 
@@ -78,6 +81,7 @@ describe('pack_rpm systemd', () => {
 
     expect(result.status).toBe('success');
     expect(calls[0]).not.toContain('%post');
+    expect(calls[0]).not.toContain('%postun');
     expect(calls[0]).not.toContain('/usr/lib/systemd/system/');
     expect(calls[1]).not.toContain('systemd-analyze');
     expect(result.artifacts?.[0].metadata?.verified_checks).not.toContain('systemd-analyze verify');

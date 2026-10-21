@@ -310,7 +310,10 @@ function createDebBuildScript(packageName: string, artifactName: string, package
         `cat > /package/DEBIAN/prerm <<'DELIVERKIT_PRERM'`,
         ...maintainerScripts.prerm.split('\n'),
         'DELIVERKIT_PRERM',
-        'chmod 0755 /package/DEBIAN/postinst /package/DEBIAN/prerm',
+        `cat > /package/DEBIAN/postrm <<'DELIVERKIT_POSTRM'`,
+        ...maintainerScripts.postrm.split('\n'),
+        'DELIVERKIT_POSTRM',
+        'chmod 0755 /package/DEBIAN/postinst /package/DEBIAN/prerm /package/DEBIAN/postrm',
       ]
     : [];
 
@@ -352,16 +355,26 @@ export function createSystemdUnit(packageName: string): string {
   ].join('\n');
 }
 
+export type SystemdScriptFlavor = 'deb' | 'rpm';
+
 /**
- * 生成 deb 维护脚本：真实主机上 enable --now 一次到位；
- * 构建容器等无 systemd 环境降级为仅安装单元文件并提示，不阻塞 dpkg 安装。
+ * 生成 deb/rpm 维护脚本（纯函数，供打包与单测复用）。
+ *
+ * - 停服只发生在卸载（deb: `$1=remove`；rpm: `$1=0`），升级不中断运行中的服务；
+ * - 卸载/清除时 disable 并 daemon-reload，避免 enable 符号链接残留；
+ * - 无 systemd 运行环境（构建/验证容器）一律降级为空操作，不阻塞安装/卸载。
  */
-export function createSystemdMaintainerScripts(packageName: string): { postinst: string; prerm: string } {
-  const guard = 'if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then';
+export function createSystemdMaintainerScripts(
+  packageName: string,
+  flavor: SystemdScriptFlavor = 'deb'
+): { postinst: string; prerm: string; postrm: string } {
+  const guard = '[ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1';
+  const removeWhen = flavor === 'deb' ? '[ "$1" = remove ]' : '[ "$1" = 0 ]';
+  const purgeWhen = flavor === 'deb' ? '{ [ "$1" = remove ] || [ "$1" = purge ]; }' : '[ "$1" = 0 ]';
   const postinst = [
     '#!/bin/sh',
     'set -eu',
-    guard,
+    `if ${guard}; then`,
     '  systemctl daemon-reload',
     `  systemctl enable --now ${packageName}.service`,
     'else',
@@ -372,12 +385,21 @@ export function createSystemdMaintainerScripts(packageName: string): { postinst:
   const prerm = [
     '#!/bin/sh',
     'set -eu',
-    guard,
+    `if ${removeWhen} && ${guard}; then`,
     `  systemctl stop ${packageName}.service || true`,
     'fi',
     '',
   ].join('\n');
-  return { postinst, prerm };
+  const postrm = [
+    '#!/bin/sh',
+    'set -eu',
+    `if ${purgeWhen} && ${guard}; then`,
+    `  systemctl disable ${packageName}.service || true`,
+    '  systemctl daemon-reload || true',
+    'fi',
+    '',
+  ].join('\n');
+  return { postinst, prerm, postrm };
 }
 
 function readPackageJson(sourceDir: string): { scripts?: { start?: string } } | null {

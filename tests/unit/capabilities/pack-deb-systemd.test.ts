@@ -62,9 +62,10 @@ describe('createSystemdUnit', () => {
     expect(unit).toContain('WantedBy=multi-user.target');
   });
 
-  it('包名进入 Description，不含 shell 元字符注入面', () => {
+  it('包名进入 Description 行（包名上游已过 normalizePackageName 字符白名单）', () => {
     const unit = createSystemdUnit('demo-app');
-    expect(unit).toContain('Description=demo-app service (DeliverKit)');
+    const descriptionLines = unit.split('\n').filter((line) => line.startsWith('Description='));
+    expect(descriptionLines).toEqual(['Description=demo-app service (DeliverKit)']);
   });
 });
 
@@ -78,9 +79,25 @@ describe('createSystemdMaintainerScripts', () => {
     expect(postinst).toContain('systemctl enable --now demo-app');
   });
 
-  it('prerm 停服务且允许失败，不阻塞卸载', () => {
+  it('prerm 只在卸载（$1=remove）时停服，升级不中断运行中的服务', () => {
     const { prerm } = createSystemdMaintainerScripts('demo-app');
+    expect(prerm).toContain('[ "$1" = remove ]');
     expect(prerm).toContain('systemctl stop demo-app.service || true');
+  });
+
+  it('postrm 在卸载/清除时 disable 并 daemon-reload，避免 enable 符号链接残留', () => {
+    const { postrm } = createSystemdMaintainerScripts('demo-app');
+    expect(postrm).toContain('[ "$1" = remove ]');
+    expect(postrm).toContain('[ "$1" = purge ]');
+    expect(postrm).toContain('systemctl disable demo-app.service || true');
+    expect(postrm).toContain('systemctl daemon-reload || true');
+  });
+
+  it('rpm 变体以 $1=0（erase）为卸载条件', () => {
+    const { prerm, postrm } = createSystemdMaintainerScripts('demo-app', 'rpm');
+    expect(prerm).toContain('[ "$1" = 0 ]');
+    expect(postrm).toContain('[ "$1" = 0 ]');
+    expect(postrm).toContain('systemctl disable demo-app.service || true');
   });
 });
 
@@ -103,10 +120,11 @@ describe('pack_deb systemd', () => {
     expect(buildScript).toContain('.service');
     expect(buildScript).toContain("cat > /package/DEBIAN/postinst <<'DELIVERKIT_POSTINST'");
     expect(buildScript).toContain("cat > /package/DEBIAN/prerm <<'DELIVERKIT_PRERM'");
-    expect(buildScript).toContain('chmod 0755 /package/DEBIAN/postinst /package/DEBIAN/prerm');
+    expect(buildScript).toContain("cat > /package/DEBIAN/postrm <<'DELIVERKIT_POSTRM'");
+    expect(buildScript).toContain('chmod 0755 /package/DEBIAN/postinst /package/DEBIAN/prerm /package/DEBIAN/postrm');
 
     expect(verifyScript).toContain('systemd-analyze verify /lib/systemd/system/');
-    expect(verifyScript).toContain('systemd');
+    expect(verifyScript).toMatch(/apt-get install -y --no-install-recommends[^\n]*\bsystemd\b/);
     expect(result.artifacts?.[0].metadata?.verified_checks).toContain('systemd-analyze verify');
   });
 
@@ -123,6 +141,7 @@ describe('pack_deb systemd', () => {
     expect(result.status).toBe('success');
     expect(calls[0]).not.toContain('/lib/systemd/system/');
     expect(calls[0]).not.toContain('/DEBIAN/postinst');
+    expect(calls[0]).not.toContain('/DEBIAN/postrm');
     expect(calls[1]).not.toContain('systemd-analyze');
     expect(result.artifacts?.[0].metadata?.verified_checks).not.toContain('systemd-analyze verify');
   });
