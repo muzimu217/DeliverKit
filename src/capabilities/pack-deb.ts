@@ -381,12 +381,17 @@ export function createSystemdMaintainerScripts(packageName: string): { postinst:
 }
 
 function readPackageJson(sourceDir: string): { scripts?: { start?: string } } | null {
+  const packageJsonPath = path.join(sourceDir, 'package.json');
   try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(path.join(sourceDir, 'package.json'), 'utf8'));
+    const parsed: unknown = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
     if (typeof parsed !== 'object' || parsed === null) {return null;}
     const scripts = (parsed as { scripts?: unknown }).scripts;
     return typeof scripts === 'object' && scripts !== null ? parsed : null;
-  } catch {
+  } catch (error) {
+    // ENOENT 是预期情况（很多项目没有 package.json）；其余错误记录下来便于排查，但不阻断降级路径。
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      console.warn(`[deliverkit] package.json 读取失败（已按无配置降级）: ${packageJsonPath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
     return null;
   }
 }
